@@ -1,0 +1,16 @@
+# Don't publish these to npm
+.env
+.env.*
+logs/
+accounts/
+screenshots/
+browser_data/
+temp/
+*.log
+.DS_Store
+.vscode/
+.idea/
+node_modules/
+examples/
+Revised E2E Flow for MyG Insta Bot_ Detailed Architecture Plan (1).md
+

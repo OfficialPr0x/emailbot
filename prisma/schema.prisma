@@ -1,0 +1,94 @@
+// Prisma schema for MyG Instagram Bot
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Account {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  username    String?  @unique
+  fullName    String?
+  birthDate   String?
+  gender      String?
+  bio         String?
+  location    String?
+  occupation  String?
+  
+  // Instagram specific
+  instagramId String?
+  followers   Int      @default(0)
+  following   Int      @default(0)
+  posts       Int      @default(0)
+  
+  // Status
+  status      String   @default("pending") // pending, active, failed, suspended
+  verified    Boolean  @default(false)
+  
+  // Profile data
+  profile     Json?
+  
+  // Metadata
+  proxyUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastActive  DateTime?
+  
+  // Relations
+  activities  Activity[]
+  jobs        Job[]
+}
+
+model Job {
+  id          String   @id @default(uuid())
+  accountId   String?
+  type        String   // gmail, instagram, full
+  status      String   @default("pending") // pending, running, completed, failed
+  progress    Int      @default(0)
+  stage       String?
+  message     String?
+  error       String?
+  
+  // Configuration
+  config      Json?
+  
+  // Metadata
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  account     Account?  @relation(fields: [accountId], references: [id])
+  activities  Activity[]
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  accountId String?
+  jobId     String?
+  type      String   // account_created, job_progress, job_error, etc.
+  message   String
+  data      Json?
+  read      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  account   Account? @relation(fields: [accountId], references: [id])
+  job       Job?     @relation(fields: [jobId], references: [id])
+}
+
+model Settings {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           Json
+  updatedAt       DateTime @updatedAt
+}
+

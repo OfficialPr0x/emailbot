@@ -1,0 +1,10 @@
+node_modules/
+.env
+logs/
+*.log
+browser_data/
+screenshots/
+accounts/
+temp/
+.DS_Store
+
