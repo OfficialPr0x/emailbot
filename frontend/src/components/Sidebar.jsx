@@ -1,13 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Plus, 
-  Activity, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  Plus,
+  Activity,
+  BarChart3,
   Settings,
   ChevronLeft,
-  Instagram,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { cn } from '@/lib/utils'
@@ -35,9 +34,11 @@ export default function Sidebar() {
       <div className="flex h-16 items-center justify-between px-4 border-b">
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-instagram">
-              <Instagram className="h-6 w-6 text-white" />
-            </div>
+            <img
+              src="https://res.cloudinary.com/dolij7wjr/image/upload/v1761773520/ChatGPT_Image_Oct_29_2025_05_31_26_PM_ujms0h.png"
+              alt="MyG Bot Logo"
+              className="h-10 w-10 rounded-lg"
+            />
             <div>
               <h1 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                 MyG Bot

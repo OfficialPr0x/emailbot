@@ -1,8 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Sparkles, Zap, Shield, TrendingUp } from 'lucide-react'
+import { ArrowRight, Flame, Crown } from 'lucide-react'
+import CountdownTimer from './CountdownTimer'
+import KeysRemaining from './KeysRemaining'
+import PaymentModal from './PaymentModal'
 
 export default function Hero() {
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   return (
     <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="container mx-auto">
@@ -19,10 +23,10 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="inline-flex items-center space-x-2 glass px-4 py-2 rounded-full mb-6"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2 rounded-full mb-6 glow"
             >
-              <Sparkles className="w-4 h-4 text-yellow-400" />
-              <span className="text-sm font-medium">AI-Powered Automation</span>
+              <Flame className="w-4 h-4 text-white animate-pulse" />
+              <span className="text-sm font-bold text-white">PRESALE NOW LIVE - 100 KEYS ONLY</span>
             </motion.div>
 
             {/* Main Headline */}
@@ -32,10 +36,10 @@ export default function Hero() {
               transition={{ delay: 0.3 }}
               className="text-5xl md:text-6xl lg:text-7xl font-black leading-tight mb-6"
             >
-              Scale Your{' '}
-              <span className="gradient-text">Instagram</span>
+              Secure Your{' '}
+              <span className="gradient-text">Founder's Pass</span>
               <br />
-              Empire On Autopilot
+              Before Launch
             </motion.h1>
 
             {/* Subheadline */}
@@ -45,58 +49,54 @@ export default function Hero() {
               transition={{ delay: 0.4 }}
               className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0"
             >
-              Create unlimited Instagram & Gmail accounts with AI-powered profiles, 
-              stealth automation, and enterprise-grade proxy rotation. 
-              <span className="text-white font-semibold"> Zero manual work required.</span>
+              Lifetime access to unlimited Instagram & Gmail account creation. 
+              Full Architect-tier features. No subscriptions, ever.{' '}
+              <span className="text-white font-semibold">$997 one-time. Only 100 spots.</span>
             </motion.p>
 
-            {/* Feature Pills */}
+            {/* Countdown Timer */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="flex flex-wrap gap-3 justify-center lg:justify-start mb-8"
+              className="flex justify-center lg:justify-start mb-6"
             >
-              {[
-                { icon: Zap, text: '100 Premium Proxies' },
-                { icon: Shield, text: 'Stealth Mode' },
-                { icon: TrendingUp, text: '99.2% Success Rate' },
-              ].map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 glass px-4 py-2 rounded-full"
-                >
-                  <item.icon className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium">{item.text}</span>
-                </div>
-              ))}
+              <CountdownTimer />
+            </motion.div>
+
+            {/* Keys Remaining Counter */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="flex justify-center lg:justify-start mb-8"
+            >
+              <KeysRemaining totalKeys={100} soldKeys={23} />
             </motion.div>
 
             {/* CTA Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+              transition={{ delay: 0.7 }}
+              className="flex flex-col gap-4 justify-center lg:justify-start"
             >
-              <motion.a
-                href="#pricing"
-                className="group px-8 py-4 bg-gradient-instagram rounded-full font-bold text-lg btn-ripple hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 flex items-center justify-center space-x-2"
+              <motion.button
+                onClick={() => setIsPaymentModalOpen(true)}
+                className="group px-10 py-5 bg-gradient-instagram rounded-full font-bold text-xl btn-ripple hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 flex items-center justify-center space-x-2"
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span>Start Creating Accounts</span>
+                <Crown className="w-6 h-6" />
+                <span>Claim Your Founder's Pass - $997</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </motion.a>
+              </motion.button>
               
-              <motion.a
-                href="#how-it-works"
-                className="px-8 py-4 glass rounded-full font-bold text-lg hover:bg-white/10 transition-all duration-300 flex items-center justify-center"
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Watch Demo
-              </motion.a>
+              <div className="text-center lg:text-left">
+                <p className="text-sm text-gray-500">
+                  ⏰ Only <span className="text-red-500 font-bold">77 keys</span> left
+                </p>
+              </div>
             </motion.div>
 
             {/* Trust Indicators */}
@@ -115,13 +115,19 @@ export default function Hero() {
                     />
                   ))}
                 </div>
-                <span>2,847+ users</span>
+                <span>23 founders joined</span>
               </div>
               <div className="flex items-center space-x-1">
-                <span className="text-yellow-400">★★★★★</span>
-                <span>4.9/5 rating</span>
+                <span className="text-red-500">🔥</span>
+                <span>3 claimed in last hour</span>
               </div>
             </motion.div>
+            
+            {/* Payment Modal */}
+            <PaymentModal 
+              isOpen={isPaymentModalOpen} 
+              onClose={() => setIsPaymentModalOpen(false)} 
+            />
           </motion.div>
 
           {/* Right Column - Visual/Dashboard Preview */}

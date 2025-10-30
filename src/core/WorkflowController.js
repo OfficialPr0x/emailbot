@@ -1,6 +1,6 @@
 import { EnhancedGmailBot } from '../bots/EnhancedGmailBot.js';
 import { EnhancedInstagramCreator } from '../bots/EnhancedInstagramCreator.js';
-import { DeepSeekController } from './DeepSeekController.js';
+import { OpenRouterController } from './OpenRouterController.js';
 import { ProxyManager } from './ProxyManager.js';
 import ProxyRotator from './ProxyRotator.js';
 import AccountRepository from '../database/repositories/AccountRepository.js';
@@ -31,7 +31,7 @@ export class WorkflowController {
       ...options,
     };
 
-    this.deepseek = new DeepSeekController(process.env.DEEPSEEK_API_KEY);
+    this.aiController = new OpenRouterController(process.env.OPENROUTER_API_KEY);
     this.proxyManager = new ProxyManager({ proxyUrl: this.options.proxyUrl });
     this.statusCallbacks = [];
     this.currentStatus = {};
@@ -66,6 +66,28 @@ export class WorkflowController {
         logger.error('Error in status callback', { error: error.message });
       }
     });
+  }
+
+  /**
+   * Emit detailed progress update with action log
+   * @param {Object} job - Job object
+   * @param {number} progress - Progress percentage
+   * @param {string} stage - Stage identifier
+   * @param {string} message - Detailed message
+   * @param {string} actionType - Type of action (info, success, warning, error)
+   */
+  async emitProgressUpdate(job, progress, stage, message, actionType = 'info') {
+    if (job) {
+      await JobRepository.updateProgress(job.id, progress, stage, message);
+    }
+    this.updateStatus({
+      stage,
+      progress,
+      message,
+      actionType,
+      jobId: job?.id,
+    });
+    logger.info(`[${stage}] ${message}`, { progress });
   }
 
   /**
@@ -106,18 +128,14 @@ export class WorkflowController {
       }
 
       // Step 1: Generate profile
-      await JobRepository.updateProgress(job.id, 10, 'profile_generation', 'Generating realistic user profile...');
-      this.updateStatus({
-        stage: 'profile_generation',
-        progress: 10,
-        message: 'Generating realistic user profile...',
-        jobId: job.id,
-      });
+      await this.emitProgressUpdate(job, 10, 'profile_generation', 'Starting profile generation...', 'info');
+      await this.emitProgressUpdate(job, 12, 'profile_generation', 'Contacting AI service...', 'info');
 
       const profile = this.options.useAiProfile
-        ? await this.deepseek.generateProfileInfo()
-        : this.deepseek.generateBasicProfile();
+        ? await this.aiController.generateProfileInfo()
+        : this.aiController.generateBasicProfile();
 
+      await this.emitProgressUpdate(job, 15, 'profile_generation', `Profile created for ${profile.fullName}`, 'success');
       logger.info('Profile generated', { username: profile.username });
 
       // Create pending account in database
@@ -145,24 +163,24 @@ export class WorkflowController {
       });
 
       // Step 2: Create Gmail account
-      await JobRepository.updateProgress(job.id, 20, 'gmail_creation', 'Creating Gmail account...');
-      this.updateStatus({
-        stage: 'gmail_creation',
-        progress: 20,
-        message: 'Creating Gmail account...',
-        jobId: job.id,
-      });
-
+      await this.emitProgressUpdate(job, 20, 'gmail_creation', 'Initializing Gmail bot...', 'info');
+      
       gmailBot = new EnhancedGmailBot({
         headless: this.options.headless,
         proxyUrl: this.options.proxyUrl,
       });
 
+      await this.emitProgressUpdate(job, 22, 'gmail_creation', 'Launching browser instance...', 'info');
       await gmailBot.initialize();
 
+      await this.emitProgressUpdate(job, 25, 'gmail_creation', 'Navigating to Gmail signup...', 'info');
+      await this.emitProgressUpdate(job, 28, 'gmail_creation', 'Filling account details...', 'info');
+      
       const gmailAccount = await gmailBot.createGmailAccount(profile);
 
-      await JobRepository.updateProgress(job.id, 40, 'gmail_created', 'Gmail account created successfully');
+      await this.emitProgressUpdate(job, 38, 'gmail_created', 'Gmail verification complete', 'success');
+      await this.emitProgressUpdate(job, 40, 'gmail_created', `✓ Gmail created: ${gmailAccount.email}`, 'success');
+      
       await AccountRepository.update(dbAccount.id, { status: 'active' });
       await ActivityRepository.create({
         accountId: dbAccount.id,
@@ -171,37 +189,31 @@ export class WorkflowController {
         message: `Gmail created: ${gmailAccount.email}`,
       });
 
-      this.updateStatus({
-        stage: 'gmail_created',
-        progress: 40,
-        message: 'Gmail account created successfully',
-        jobId: job.id,
-      });
-
       logger.info('Gmail account created', { email: gmailAccount.email });
 
       // Step 3: Create Instagram account
-      await JobRepository.updateProgress(job.id, 50, 'instagram_creation', 'Creating Instagram account...');
-      this.updateStatus({
-        stage: 'instagram_creation',
-        progress: 50,
-        message: 'Creating Instagram account...',
-        jobId: job.id,
-      });
+      await this.emitProgressUpdate(job, 45, 'instagram_creation', 'Preparing Instagram setup...', 'info');
+      await this.emitProgressUpdate(job, 48, 'instagram_creation', 'Initializing Instagram bot...', 'info');
 
       instagramCreator = new EnhancedInstagramCreator({
         headless: this.options.headless,
         proxyUrl: this.options.proxyUrl,
       });
 
+      await this.emitProgressUpdate(job, 50, 'instagram_creation', 'Launching browser for Instagram...', 'info');
       await instagramCreator.initialize();
 
+      await this.emitProgressUpdate(job, 55, 'instagram_creation', 'Navigating to Instagram signup...', 'info');
+      await this.emitProgressUpdate(job, 58, 'instagram_creation', 'Filling registration form...', 'info');
+      
       const instagramAccount = await instagramCreator.createInstagramAccount({
         gmailAccount,
         profile,
       });
 
-      await JobRepository.updateProgress(job.id, 70, 'instagram_created', 'Instagram account created successfully');
+      await this.emitProgressUpdate(job, 68, 'instagram_profile', 'Setting up profile details...', 'info');
+      await this.emitProgressUpdate(job, 70, 'instagram_profile', `✓ Instagram created: @${instagramAccount.username}`, 'success');
+      
       await AccountRepository.update(dbAccount.id, { 
         username: instagramAccount.username,
         instagramId: instagramAccount.username,
@@ -213,27 +225,17 @@ export class WorkflowController {
         message: `Instagram created: @${instagramAccount.username}`,
       });
 
-      this.updateStatus({
-        stage: 'instagram_created',
-        progress: 70,
-        message: 'Instagram account created successfully',
-        jobId: job.id,
-      });
-
       logger.info('Instagram account created', {
         username: instagramAccount.username,
       });
 
       // Step 4: Setup Instagram profile
-      await JobRepository.updateProgress(job.id, 80, 'profile_setup', 'Setting up Instagram profile...');
-      this.updateStatus({
-        stage: 'profile_setup',
-        progress: 80,
-        message: 'Setting up Instagram profile...',
-        jobId: job.id,
-      });
+      await this.emitProgressUpdate(job, 75, 'instagram_profile', 'Configuring profile bio...', 'info');
+      await this.emitProgressUpdate(job, 78, 'instagram_profile', 'Adding profile picture...', 'info');
 
       await instagramCreator.setupProfile(instagramAccount, profile);
+      
+      await this.emitProgressUpdate(job, 82, 'instagram_profile', '✓ Profile setup complete', 'success');
       await ActivityRepository.create({
         accountId: dbAccount.id,
         jobId: job.id,
@@ -245,19 +247,15 @@ export class WorkflowController {
 
       // Step 5: Post initial content (if enabled)
       if (this.options.uploadImages) {
-        await JobRepository.updateProgress(job.id, 90, 'content_posting', 'Posting initial content...');
-        this.updateStatus({
-          stage: 'content_posting',
-          progress: 90,
-          message: 'Posting initial content...',
-          jobId: job.id,
-        });
+        await this.emitProgressUpdate(job, 85, 'content_posting', 'Preparing initial content...', 'info');
+        await this.emitProgressUpdate(job, 88, 'content_posting', 'Uploading posts...', 'info');
 
         await instagramCreator.postInitialContent(
           instagramAccount,
           this.options.initialPostCount
         );
 
+        await this.emitProgressUpdate(job, 92, 'content_posting', `✓ Posted ${this.options.initialPostCount} images`, 'success');
         await ActivityRepository.create({
           accountId: dbAccount.id,
           jobId: job.id,
@@ -269,6 +267,9 @@ export class WorkflowController {
       }
 
       // Complete
+      await this.emitProgressUpdate(job, 95, 'completed', 'Finalizing account...', 'info');
+      await this.emitProgressUpdate(job, 97, 'completed', 'Saving to database...', 'info');
+      
       await JobRepository.complete(job.id, dbAccount.id);
       await AccountRepository.update(dbAccount.id, { 
         status: 'active',
@@ -296,19 +297,23 @@ export class WorkflowController {
         createdAt: new Date().toISOString(),
       };
 
-      this.updateStatus({
-        stage: 'completed',
-        progress: 100,
-        message: 'Workflow completed successfully',
-        jobId: job.id,
-        accountId: dbAccount.id,
-      });
+      await this.emitProgressUpdate(job, 100, 'completed', '🎉 Account creation completed successfully!', 'success');
 
       logger.info('Full workflow completed successfully');
 
       return result;
     } catch (error) {
       logger.error('Workflow execution failed', { error: error.message });
+
+      // Emit error update
+      this.updateStatus({
+        stage: 'error',
+        progress: 0,
+        message: `❌ Error: ${error.message}`,
+        actionType: 'error',
+        error: error.message,
+        jobId: job?.id,
+      });
 
       // Mark proxy as failed
       if (this.options.proxyUrl) {
@@ -327,14 +332,6 @@ export class WorkflowController {
           message: `Error: ${error.message}`,
         });
       }
-
-      this.updateStatus({
-        stage: 'error',
-        progress: 0,
-        message: `Workflow failed: ${error.message}`,
-        error: error.message,
-        jobId: job?.id,
-      });
 
       throw error;
     } finally {
@@ -372,8 +369,8 @@ export class WorkflowController {
         });
 
         profile = this.options.useAiProfile
-          ? await this.deepseek.generateProfileInfo()
-          : this.deepseek.generateBasicProfile();
+          ? await this.aiController.generateProfileInfo()
+          : this.aiController.generateBasicProfile();
       }
 
       // Create Gmail account

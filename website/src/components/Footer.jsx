@@ -1,32 +1,33 @@
 import React from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { Zap, Twitter, Github, Linkedin, Mail } from 'lucide-react'
 
 export default function Footer() {
   const footerLinks = {
     Product: [
-      { name: 'Features', href: '#features' },
-      { name: 'Pricing', href: '#pricing' },
-      { name: 'How It Works', href: '#how-it-works' },
-      { name: 'FAQ', href: '#faq' },
+      { name: 'Features', href: '#features', type: 'anchor' },
+      { name: 'Pricing', href: '#pricing', type: 'anchor' },
+      { name: 'How It Works', href: '#how-it-works', type: 'anchor' },
+      { name: 'FAQ', href: '#faq', type: 'anchor' },
     ],
     Company: [
-      { name: 'About', href: '#' },
-      { name: 'Blog', href: '#' },
-      { name: 'Careers', href: '#' },
-      { name: 'Contact', href: '#' },
+      { name: 'About', href: '#', type: 'anchor' },
+      { name: 'Blog', href: '#', type: 'anchor' },
+      { name: 'Careers', href: '#', type: 'anchor' },
+      { name: 'Contact', href: '/support', type: 'route' },
     ],
     Resources: [
-      { name: 'Documentation', href: '#' },
-      { name: 'API Reference', href: '#' },
-      { name: 'Community', href: '#' },
-      { name: 'Support', href: '#' },
+      { name: 'Documentation', href: '/docs', type: 'route' },
+      { name: 'API Reference', href: '/api-reference', type: 'route' },
+      { name: 'Community', href: '/community', type: 'route' },
+      { name: 'Support', href: '/support', type: 'route' },
     ],
     Legal: [
-      { name: 'Privacy Policy', href: '#' },
-      { name: 'Terms of Service', href: '#' },
-      { name: 'Cookie Policy', href: '#' },
-      { name: 'Disclaimer', href: '#' },
+      { name: 'Privacy Policy', href: '/privacy-policy', type: 'route' },
+      { name: 'Terms of Service', href: '/terms-of-service', type: 'route' },
+      { name: 'Cookie Policy', href: '/cookie-policy', type: 'route' },
+      { name: 'Disclaimer', href: '/disclaimer', type: 'route' },
     ],
   }
 
@@ -94,12 +95,21 @@ export default function Footer() {
               <ul className="space-y-3">
                 {links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <a
-                      href={link.href}
-                      className="text-gray-400 hover:text-white transition-colors text-sm"
-                    >
-                      {link.name}
-                    </a>
+                    {link.type === 'route' ? (
+                      <Link
+                        to={link.href}
+                        className="text-gray-400 hover:text-white transition-colors text-sm"
+                      >
+                        {link.name}
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        className="text-gray-400 hover:text-white transition-colors text-sm"
+                      >
+                        {link.name}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

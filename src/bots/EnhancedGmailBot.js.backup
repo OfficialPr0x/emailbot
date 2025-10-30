@@ -1,0 +1,1016 @@
+import { BrowserManager } from '../core/BrowserManager.js';
+import { FormFiller } from '../core/FormFiller.js';
+import { OTPRetriever } from '../core/OTPRetriever.js';
+import { createLogger } from '../utils/logger.js';
+import * as helpers from '../utils/helpers.js';
+
+const logger = createLogger('EnhancedGmailBot');
+
+/**
+ * Enhanced Gmail Bot with multi-stage navigation and human-like behavior
+ */
+export class EnhancedGmailBot {
+  constructor(options = {}) {
+    this.options = {
+      headless: options.headless !== undefined ? options.headless : false,
+      proxyUrl: options.proxyUrl || null,
+      ...options,
+    };
+
+    this.browserManager = null;
+    this.page = null;
+    this.formFiller = null;
+  }
+
+  /**
+   * Initialize browser
+   */
+  async initialize() {
+    logger.info('Initializing Gmail bot');
+
+    this.browserManager = new BrowserManager(this.options);
+    this.page = await this.browserManager.initialize();
+    this.formFiller = new FormFiller(this.page);
+
+    logger.info('Gmail bot initialized successfully');
+  }
+
+  /**
+   * Multi-stage navigation to Gmail signup
+   */
+  async multiStageGoogleNavigation() {
+    logger.info('Performing multi-stage navigation to Google signup');
+
+    try {
+      // Step 1: Navigate to Google homepage
+      logger.info('Step 1: Navigating to Google homepage');
+      await this.browserManager.navigateWithRetry('https://google.com', {
+        maxRetries: 3,
+        waitUntil: 'networkidle',
+        initialTimeout: 60000,
+      });
+
+      await this.page.randomDelay(2000, 4000);
+      await this.browserManager.simulateHumanExploration();
+
+      // Step 2: Look for and click "Sign in" button
+      logger.info('Step 2: Looking for Sign in button');
+      const signInSelectors = [
+        'text=Sign in',
+        'a:has-text("Sign in")',
+        '[aria-label*="Sign in"]',
+        'a[href*="accounts.google.com"]',
+      ];
+
+      let signInClicked = false;
+      for (const selector of signInSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element && (await element.isVisible())) {
+            logger.info('Found Sign in button, clicking');
+            await this.page.humanClick(selector);
+            await this.page.waitForLoadState('networkidle');
+            await this.page.randomDelay(1500, 2500);
+            signInClicked = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!signInClicked) {
+        logger.info('Sign in button not found, trying direct navigation');
+        await this.browserManager.navigateWithRetry(
+          'https://accounts.google.com/signup',
+          { maxRetries: 2 }
+        );
+        return;
+      }
+
+      await this.browserManager.simulateHumanExploration();
+
+      // Step 3: Look for and click "Create account"
+      logger.info('Step 3: Looking for Create account link');
+      const createAccountSelectors = [
+        'text=Create account',
+        'a:has-text("Create account")',
+        'button:has-text("Create account")',
+        '[data-action="CREATE_ACCOUNT"]',
+      ];
+
+      let createAccountClicked = false;
+      for (const selector of createAccountSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element && (await element.isVisible())) {
+            logger.info('Found Create account link, clicking');
+            await this.page.humanClick(selector);
+            await this.page.randomDelay(1000, 2000);
+            createAccountClicked = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!createAccountClicked) {
+        logger.warn('Create account link not found, trying direct navigation');
+        await this.browserManager.navigateWithRetry(
+          'https://accounts.google.com/signup',
+          { maxRetries: 2 }
+        );
+        return;
+      }
+
+      // Occasionally scroll
+      if (Math.random() > 0.5) {
+        await this.page.humanScroll({ direction: 'down', distance: 'small' });
+      }
+
+      // Step 4: Look for "For myself" option
+      logger.info('Step 4: Looking for "For myself" option');
+      await this.page.randomDelay(1000, 2000);
+
+      const forMyselfSelectors = [
+        'text=For myself',
+        'button:has-text("For myself")',
+        '[data-value="personal"]',
+        'li:has-text("For my personal use")',
+      ];
+
+      for (const selector of forMyselfSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element && (await element.isVisible())) {
+            logger.info('Found "For myself" option, clicking');
+            await this.page.humanClick(selector);
+            await this.page.waitForLoadState('networkidle');
+            await this.page.randomDelay(2000, 3000);
+            return;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      logger.info('Multi-stage navigation completed');
+    } catch (error) {
+      logger.warn('Multi-stage navigation failed', { error: error.message });
+      // Fallback to direct navigation
+      await this.browserManager.navigateWithRetry(
+        'https://accounts.google.com/signup',
+        { maxRetries: 2 }
+      );
+    }
+  }
+
+  /**
+   * Fill Gmail signup form - MULTI-PAGE FLOW
+   * @param {Object} profile - User profile
+   */
+  async fillGmailSignupForm(profile) {
+    logger.info('Filling Gmail signup form - Multi-page flow', { email: profile.email });
+
+    try {
+      // ===== PAGE 1: NAME =====
+      logger.info('PAGE 1: Filling name information');
+      await this.page.randomDelay(2000, 3000);
+
+      // Check if we're on the name page
+      const url = this.page.url();
+      logger.info(`Current URL: ${url}`);
+      
+      // Fill first name
+      logger.info('Filling first name');
+      const firstNameSelectors = [
+        'input[name="firstName"]',
+        'input[aria-label*="First" i]',
+        '#firstName',
+      ];
+
+      let firstNameFilled = false;
+      for (const selector of firstNameSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            await this.formFiller.fillField(selector, profile.firstName);
+            logger.info(`First name filled: ${profile.firstName}`);
+            firstNameFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!firstNameFilled) {
+        throw new Error('Could not fill first name field');
+      }
+
+      await this.page.randomDelay(500, 1000);
+
+      // Fill last name
+      logger.info('Filling last name');
+      const lastNameSelectors = [
+        'input[name="lastName"]',
+        'input[aria-label*="Last" i]',
+        '#lastName',
+      ];
+
+      let lastNameFilled = false;
+      for (const selector of lastNameSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            await this.formFiller.fillField(selector, profile.lastName);
+            logger.info(`Last name filled: ${profile.lastName}`);
+            lastNameFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!lastNameFilled) {
+        throw new Error('Could not fill last name field');
+      }
+
+      await this.page.randomDelay(1000, 1500);
+
+      // Take screenshot of completed name page
+      await this.browserManager.takeScreenshot('01-name-page-filled');
+
+      // Click Next to go to BIRTHDAY page (Google's new flow!)
+      logger.info('Clicking Next to proceed to birthday page');
+      await this.clickNextButton();
+      await this.page.waitForLoadState('networkidle');
+      await this.page.randomDelay(2000, 3000);
+
+      // ===== PAGE 2: BIRTHDAY & GENDER (NEW GOOGLE FLOW!) =====
+      logger.info('PAGE 2: Filling birthday and gender (Google shows this BEFORE username now)');
+      await this.browserManager.takeScreenshot('02-birthday-page-loaded');
+
+      // Fill birth date
+      const birthDate = new Date(profile.birthDate);
+      logger.info(`Filling birth date: ${birthDate.toLocaleDateString()}`);
+      
+      // Month dropdown
+      const monthSelectors = [
+        'select[name="month"]',
+        'select[aria-label*="Month" i]',
+        '#month',
+      ];
+
+      let monthFilled = false;
+      for (const selector of monthSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            const monthValue = String(birthDate.getMonth() + 1);
+            await this.page.selectOption(selector, monthValue);
+            logger.info(`✓ Month filled: ${monthValue}`);
+            monthFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!monthFilled) {
+        throw new Error('Could not fill month field on page 2');
+      }
+
+      await this.page.randomDelay(300, 600);
+
+      // Day input
+      const daySelectors = [
+        'input[name="day"]',
+        'input[aria-label*="Day" i]',
+        '#day',
+      ];
+
+      let dayFilled = false;
+      for (const selector of daySelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            const dayValue = String(birthDate.getDate());
+            await this.formFiller.fillField(selector, dayValue);
+            logger.info(`✓ Day filled: ${dayValue}`);
+            dayFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!dayFilled) {
+        throw new Error('Could not fill day field on page 2');
+      }
+
+      await this.page.randomDelay(300, 600);
+
+      // Year input
+      const yearSelectors = [
+        'input[name="year"]',
+        'input[aria-label*="Year" i]',
+        '#year',
+      ];
+
+      let yearFilled = false;
+      for (const selector of yearSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            const yearValue = String(birthDate.getFullYear());
+            await this.formFiller.fillField(selector, yearValue);
+            logger.info(`✓ Year filled: ${yearValue}`);
+            yearFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!yearFilled) {
+        throw new Error('Could not fill year field on page 2');
+      }
+
+      await this.page.randomDelay(300, 600);
+
+      // Gender dropdown
+      const genderSelectors = [
+        'select[name="gender"]',
+        'select[aria-label*="Gender" i]',
+        '#gender',
+      ];
+
+      const genderValue = profile.gender === 'male' ? '1' : '2';
+      
+      let genderFilled = false;
+      for (const selector of genderSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            await this.page.selectOption(selector, genderValue);
+            logger.info(`✓ Gender filled: ${profile.gender}`);
+            genderFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!genderFilled) {
+        throw new Error('Could not fill gender field on page 2');
+      }
+
+      await this.page.randomDelay(1000, 1500);
+      await this.browserManager.takeScreenshot('02-birthday-gender-filled');
+
+      // Click Next to go to USERNAME page
+      logger.info('Clicking Next to proceed to username page');
+      await this.clickNextButton();
+      await this.page.waitForLoadState('networkidle');
+      await this.page.randomDelay(2000, 3000);
+
+      logger.info('✓ Birthday and gender page completed');
+
+      // ===== PAGE 3: USERNAME & PASSWORD =====
+      logger.info('PAGE 3: Filling username and password');
+      await this.browserManager.takeScreenshot('03-username-page-loaded');
+
+      // Now on username page - fill username
+      logger.info('Filling username (Gmail address)');
+      
+      const usernameSelectors = [
+        'input[name="Username"]',
+        'input[name="username"]',
+        'input[aria-label*="username" i]',
+        'input[aria-label*="Gmail" i]',
+        'input[aria-label*="email" i]',
+        'input[aria-label*="address" i]',
+        'input[aria-label*="choose" i]',
+        'input[type="text"]',
+        '#username',
+        'input.whsOnd',
+      ];
+
+      // Extract username from email (before @)
+      const username = profile.email.split('@')[0];
+      logger.info(`Username to fill: ${username}`);
+
+      let usernameFilled = false;
+      
+      // Wait for username field to appear
+      await this.page.waitForSelector('input[type="text"]', { timeout: 10000, state: 'visible' });
+      
+      for (const selector of usernameSelectors) {
+        try {
+          const elements = await this.page.$$(selector);
+          if (elements.length > 0) {
+            logger.info(`Found username field with selector: ${selector}`);
+            
+            // Try to fill it
+            try {
+              await elements[0].click();
+              await this.page.randomDelay(300, 500);
+              await elements[0].fill('');
+              await this.page.randomDelay(200, 300);
+              
+              // Type character by character
+              for (const char of username) {
+                await elements[0].type(char, { delay: 100 });
+              }
+              
+              await this.page.randomDelay(500, 800);
+              
+              // Verify
+              const value = await elements[0].inputValue();
+              if (value === username) {
+                usernameFilled = true;
+                logger.info(`✓ Username filled and verified: ${username}`);
+                break;
+              } else {
+                logger.warn(`Username verification failed. Expected: ${username}, Got: ${value}`);
+              }
+            } catch (fillError) {
+              logger.warn(`Failed to fill with selector ${selector}: ${fillError.message}`);
+            }
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!usernameFilled) {
+        await this.browserManager.takeScreenshot('username-fill-failed');
+        throw new Error('Could not fill username field - stopping workflow');
+      }
+
+      await this.browserManager.takeScreenshot('04-username-filled');
+
+      await this.page.randomDelay(1000, 1500);
+
+      // Fill password on same page
+      logger.info('Filling password');
+      const passwordSelectors = [
+        'input[name="Passwd"]',
+        'input[type="password"]',
+        'input[aria-label*="password" i]',
+        '#passwd',
+      ];
+
+      let passwordFilled = false;
+      for (const selector of passwordSelectors) {
+        try {
+          const elements = await this.page.$$(selector);
+          if (elements.length > 0) {
+            logger.info('Found password field');
+            await elements[0].click();
+            await this.page.randomDelay(200, 300);
+            await elements[0].fill(profile.password);
+            await this.page.randomDelay(500, 700);
+            
+            const value = await elements[0].inputValue();
+            if (value === profile.password) {
+              passwordFilled = true;
+              logger.info('✓ Password filled and verified');
+              break;
+            }
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!passwordFilled) {
+        throw new Error('Could not fill password field');
+      }
+
+      await this.page.randomDelay(500, 1000);
+
+      // Fill confirm password (if present on same page)
+      logger.info('Checking for confirm password field');
+      const confirmPasswordSelectors = [
+        'input[name="PasswdAgain"]',
+        'input[name="ConfirmPasswd"]',
+        'input[aria-label*="Confirm" i]',
+      ];
+
+      for (const selector of confirmPasswordSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            logger.info('Found confirm password field');
+            await this.formFiller.fillField(selector, profile.password);
+            logger.info('✓ Confirm password filled');
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      await this.page.randomDelay(1000, 1500);
+      await this.browserManager.takeScreenshot('05-username-password-filled');
+
+      // Click Next to go to Terms page
+      logger.info('Clicking Next to proceed to Terms page');
+      await this.clickNextButton();
+      await this.page.waitForLoadState('networkidle');
+      await this.page.randomDelay(2000, 3000);
+
+      logger.info('✓ Username and password page completed (PAGE 3 complete)');
+    } catch (error) {
+      logger.error('Failed to fill signup form', { error: error.message });
+      await this.browserManager.takeScreenshot('gmail-signup-error');
+      throw error;
+    }
+  }
+
+  /**
+   * Fill additional details (birth date, gender) - PAGE 3
+   * @param {Object} profile - User profile
+   */
+  async fillAdditionalDetails(profile) {
+    logger.info('PAGE 3: Filling birthday and gender');
+    await this.browserManager.takeScreenshot('05-birthday-page-loaded');
+
+    try {
+      // Check for and skip phone number if present
+      const phoneSelectors = [
+        'input[name="phoneNumber"]',
+        'input[type="tel"]',
+        'input[aria-label*="phone" i]',
+      ];
+
+      for (const selector of phoneSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            logger.info('Phone number field detected, looking for Skip button');
+            
+            const skipSelectors = ['button:has-text("Skip")', 'text=Skip'];
+            for (const skipSelector of skipSelectors) {
+              try {
+                if (await helpers.isElementVisible(this.page, skipSelector)) {
+                  logger.info('Clicking Skip for phone number');
+                  await this.page.humanClick(skipSelector);
+                  await this.page.waitForLoadState('networkidle');
+                  await this.page.randomDelay(2000, 3000);
+                  break;
+                }
+              } catch (error) {
+                continue;
+              }
+            }
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      // Fill birth date
+      const birthDate = new Date(profile.birthDate);
+      logger.info(`Filling birth date: ${birthDate.toLocaleDateString()}`);
+      
+      // Month dropdown
+      const monthSelectors = [
+        'select[name="month"]',
+        'select[aria-label*="Month" i]',
+        '#month',
+      ];
+
+      let monthFilled = false;
+      for (const selector of monthSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            const monthValue = String(birthDate.getMonth() + 1);
+            await this.page.selectOption(selector, monthValue);
+            logger.info(`✓ Month filled: ${monthValue}`);
+            monthFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!monthFilled) {
+        throw new Error('Could not fill month field');
+      }
+
+      await this.page.randomDelay(300, 600);
+
+      // Day input
+      const daySelectors = [
+        'input[name="day"]',
+        'input[aria-label*="Day" i]',
+        '#day',
+      ];
+
+      let dayFilled = false;
+      for (const selector of daySelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            const dayValue = String(birthDate.getDate());
+            await this.formFiller.fillField(selector, dayValue);
+            logger.info(`✓ Day filled: ${dayValue}`);
+            dayFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!dayFilled) {
+        throw new Error('Could not fill day field');
+      }
+
+      await this.page.randomDelay(300, 600);
+
+      // Year input
+      const yearSelectors = [
+        'input[name="year"]',
+        'input[aria-label*="Year" i]',
+        '#year',
+      ];
+
+      let yearFilled = false;
+      for (const selector of yearSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            const yearValue = String(birthDate.getFullYear());
+            await this.formFiller.fillField(selector, yearValue);
+            logger.info(`✓ Year filled: ${yearValue}`);
+            yearFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!yearFilled) {
+        throw new Error('Could not fill year field');
+      }
+
+      await this.page.randomDelay(300, 600);
+
+      // Gender dropdown
+      const genderSelectors = [
+        'select[name="gender"]',
+        'select[aria-label*="Gender" i]',
+        '#gender',
+      ];
+
+      const genderValue = profile.gender === 'male' ? '1' : '2';
+      
+      let genderFilled = false;
+      for (const selector of genderSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            await this.page.selectOption(selector, genderValue);
+            logger.info(`✓ Gender filled: ${profile.gender}`);
+            genderFilled = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!genderFilled) {
+        throw new Error('Could not fill gender field');
+      }
+
+      await this.page.randomDelay(1000, 1500);
+      await this.browserManager.takeScreenshot('06-birthday-filled');
+
+      // Click Next to proceed to Terms page
+      logger.info('Clicking Next to proceed to Terms page');
+      await this.clickNextButton();
+      await this.page.waitForLoadState('networkidle');
+      await this.page.randomDelay(2000, 3000);
+
+      logger.info('✓ Birthday and gender page completed');
+    } catch (error) {
+      logger.error('Failed to fill additional details', {
+        error: error.message,
+      });
+      await this.browserManager.takeScreenshot('birthday-page-error');
+      throw error;
+    }
+  }
+
+  /**
+   * Click the Next button
+   */
+  async clickNextButton() {
+    const nextSelectors = [
+      'button:has-text("Next")',
+      'button[type="submit"]',
+      '[data-action="NEXT"]',
+      'button span:has-text("Next")',
+    ];
+
+    for (const selector of nextSelectors) {
+      try {
+        if (await helpers.isElementVisible(this.page, selector)) {
+          await this.page.humanClick(selector);
+          return;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+
+    // Fallback: press Enter
+    await this.page.keyboard.press('Enter');
+  }
+
+  /**
+   * Accept Terms of Service - PAGE 4
+   */
+  async acceptTerms() {
+    logger.info('PAGE 4: Accepting Terms of Service');
+    await this.browserManager.takeScreenshot('06-terms-page-loaded');
+
+    try {
+      await this.page.randomDelay(2000, 3000);
+
+      // Scroll down to see terms
+      await this.page.humanScroll({ direction: 'down', distance: 'medium' });
+      await this.page.randomDelay(1000, 1500);
+
+      // Look for "I agree" button
+      const agreeSelectors = [
+        'button:has-text("I agree")',
+        'button:has-text("Agree")',
+        'button:has-text("Next")',
+        'text=I agree',
+        '[aria-label*="agree" i]',
+      ];
+
+      let termsAccepted = false;
+      for (const selector of agreeSelectors) {
+        try {
+          if (await helpers.isElementVisible(this.page, selector)) {
+            logger.info(`Found agree button: ${selector}`);
+            await this.page.humanClick(selector);
+            await this.page.randomDelay(1000, 2000);
+            termsAccepted = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      if (!termsAccepted) {
+        logger.warn('Could not find I Agree button, checking if already accepted');
+      }
+
+      // Wait for account creation to complete
+      await this.page.waitForLoadState('networkidle');
+      await this.page.randomDelay(3000, 5000);
+
+      await this.browserManager.takeScreenshot('07-after-terms-accepted');
+      logger.info('✓ Terms accepted successfully');
+    } catch (error) {
+      logger.error('Failed to accept terms', { error: error.message });
+      await this.browserManager.takeScreenshot('terms-page-error');
+      throw error;
+    }
+  }
+
+  /**
+   * Create a Gmail account - END-TO-END WORKFLOW
+   * @param {Object} profile - User profile
+   * @returns {Promise<Object>} Account information
+   */
+  async createGmailAccount(profile) {
+    logger.info('🚀 Starting Gmail account creation END-TO-END workflow', { 
+      email: profile.email,
+      firstName: profile.firstName,
+      lastName: profile.lastName 
+    });
+    logger.info('═══════════════════════════════════════════════════════');
+
+    try {
+      // ===== STEP 1: NAVIGATE =====
+      logger.info('STEP 1/5: Navigating to Google signup');
+      await this.multiStageGoogleNavigation();
+      logger.info('✓ Navigation complete');
+
+      // ===== STEP 2-4: FILL ALL PAGES =====
+      logger.info('STEP 2/5: Filling all signup pages (name, birthday, username)');
+      await this.fillGmailSignupForm(profile);
+      logger.info('✓ All signup pages completed (name, birthday, username, password)');
+
+      // ===== STEP 3: ACCEPT TERMS =====
+      logger.info('STEP 3/5: Accepting Terms of Service');
+      await this.acceptTerms();
+      logger.info('✓ Terms accepted');
+
+      // ===== STEP 4: HANDLE CAPTCHA =====
+      logger.info('STEP 4/5: Checking for CAPTCHA');
+      await this.handleCaptchaIfPresent();
+      logger.info('✓ CAPTCHA check complete');
+
+      // ===== STEP 5: VERIFY =====
+      logger.info('STEP 5/5: Verifying account creation');
+      const success = await this.verifyAccountCreation();
+
+      if (!success) {
+        logger.error('❌ ACCOUNT CREATION FAILED - Verification unsuccessful');
+        await this.browserManager.takeScreenshot('verification-failed');
+        throw new Error('Gmail account creation verification failed - account NOT created');
+      }
+
+      logger.info('═══════════════════════════════════════════════════════');
+      logger.info('✅ ✅ ✅ GMAIL ACCOUNT CREATED SUCCESSFULLY! ✅ ✅ ✅');
+      logger.info('═══════════════════════════════════════════════════════');
+      logger.info(`📧 Email: ${profile.email}`);
+      logger.info(`🔑 Password: ${profile.password}`);
+      logger.info(`👤 Name: ${profile.firstName} ${profile.lastName}`);
+      logger.info('═══════════════════════════════════════════════════════');
+
+      return {
+        email: profile.email,
+        password: profile.password,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        createdAt: new Date().toISOString(),
+        success: true,
+      };
+    } catch (error) {
+      logger.error('═══════════════════════════════════════════════════════');
+      logger.error('❌ ❌ ❌ GMAIL ACCOUNT CREATION FAILED ❌ ❌ ❌');
+      logger.error('═══════════════════════════════════════════════════════');
+      logger.error(`Error: ${error.message}`);
+      logger.error(`Email attempted: ${profile.email}`);
+      logger.error('═══════════════════════════════════════════════════════');
+      
+      await this.browserManager.takeScreenshot('gmail-creation-failed-final');
+      throw error;
+    }
+  }
+
+  /**
+   * Handle CAPTCHA if present
+   */
+  async handleCaptchaIfPresent() {
+    logger.info('Checking for CAPTCHA');
+
+    try {
+      // Look for CAPTCHA indicators
+      const captchaSelectors = [
+        'iframe[src*="recaptcha"]',
+        '[data-sitekey]',
+        'div.g-recaptcha',
+        'text=verify you are human',
+      ];
+
+      for (const selector of captchaSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element && (await element.isVisible())) {
+            logger.warn('CAPTCHA detected - manual intervention required');
+            await this.browserManager.takeScreenshot('captcha-detected');
+            
+            // Wait for manual solving
+            logger.info('Waiting for CAPTCHA to be solved...');
+            await this.page.waitForTimeout(60000); // Wait up to 1 minute
+            return;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+
+      logger.info('No CAPTCHA detected');
+    } catch (error) {
+      logger.error('Error handling CAPTCHA', { error: error.message });
+    }
+  }
+
+  /**
+   * Verify account creation was successful
+   * @returns {Promise<boolean>}
+   */
+  async verifyAccountCreation() {
+    logger.info('FINAL STEP: Verifying Gmail account creation');
+
+    try {
+      // Wait for final page to load
+      await this.page.waitForTimeout(5000);
+      
+      // Take final screenshot
+      await this.browserManager.takeScreenshot('08-final-verification');
+
+      // Get current state
+      const url = this.page.url();
+      let bodyText = '';
+      try {
+        bodyText = await this.page.textContent('body');
+      } catch (e) {
+        logger.warn('Could not read body text');
+      }
+      
+      logger.info('Final verification state', { 
+        url, 
+        bodyPreview: bodyText.substring(0, 300) 
+      });
+
+      // Success indicators
+      const successIndicators = [
+        'Welcome',
+        'account created',
+        "You're all set",
+        'Google Account',
+        'myaccount.google.com',
+        'mail.google.com',
+        'Verify your phone',
+        'Skip',
+        'Privacy and Terms',
+        'Protect your account',
+        'Get the most out of',
+        'Welcome to your Google Account',
+      ];
+
+      // STRICT CHECK: URL must indicate success
+      const successUrls = [
+        'myaccount.google.com',
+        'mail.google.com',
+        'welcome',
+        'phoneauth',
+        'challenge/selection',
+        'intro/privacycheckup',
+      ];
+
+      const urlIndicatesSuccess = successUrls.some(successUrl => 
+        url.includes(successUrl)
+      );
+
+      if (urlIndicatesSuccess) {
+        logger.info('✅ Account creation VERIFIED by URL');
+        logger.info(`✅ Success URL: ${url}`);
+        return true;
+      }
+
+      // Check if we're still on signup page (FAILURE)
+      if (url.includes('signup/v2') || url.includes('lifecycle/steps/signup')) {
+        logger.error('❌ Still on signup page - account NOT created');
+        logger.error(`❌ Current URL: ${url}`);
+        
+        // Check for error messages
+        try {
+          const errorElements = await this.page.$$('[role="alert"], .error-msg, [aria-live="assertive"]');
+          for (const el of errorElements) {
+            const errorText = await el.textContent();
+            if (errorText.trim()) {
+              logger.error(`❌ Error message: ${errorText.trim()}`);
+            }
+          }
+        } catch (e) {}
+        
+        return false;
+      }
+
+      // Check body text for success indicators
+      const hasSuccessText = successIndicators.some(indicator =>
+        bodyText.toLowerCase().includes(indicator.toLowerCase())
+      );
+
+      if (hasSuccessText) {
+        logger.info('✅ Account creation VERIFIED by text content');
+        return true;
+      }
+
+      // If we got here, verification is uncertain
+      logger.warn('⚠️ Could not definitively verify account creation');
+      logger.warn(`⚠️ Final URL: ${url}`);
+      
+      // Conservative approach: return false if uncertain
+      return false;
+    } catch (error) {
+      logger.error('❌ Account verification check failed', { error: error.message });
+      return false;
+    }
+  }
+
+  /**
+   * Close browser
+   */
+  async close() {
+    if (this.browserManager) {
+      await this.browserManager.close();
+    }
+  }
+}
+
+export default EnhancedGmailBot;
+

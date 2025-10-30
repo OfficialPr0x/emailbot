@@ -1,7 +1,7 @@
 import { BrowserManager } from '../core/BrowserManager.js';
 import { FormFiller } from '../core/FormFiller.js';
 import { OTPRetriever } from '../core/OTPRetriever.js';
-import { DeepSeekController } from '../core/DeepSeekController.js';
+import { OpenRouterController } from '../core/OpenRouterController.js';
 import { createLogger } from '../utils/logger.js';
 import * as helpers from '../utils/helpers.js';
 
@@ -21,7 +21,7 @@ export class EnhancedInstagramCreator {
     this.browserManager = null;
     this.page = null;
     this.formFiller = null;
-    this.deepseek = new DeepSeekController(process.env.DEEPSEEK_API_KEY);
+    this.aiController = new OpenRouterController(process.env.OPENROUTER_API_KEY);
   }
 
   /**
@@ -621,7 +621,7 @@ export class EnhancedInstagramCreator {
     try {
       for (let i = 0; i < postCount; i++) {
         // Generate caption using AI
-        const caption = await this.deepseek.generatePostCaption(
+        const caption = await this.aiController.generatePostCaption(
           account.profile,
           i
         );

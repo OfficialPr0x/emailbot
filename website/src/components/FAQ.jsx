@@ -7,6 +7,26 @@ export default function FAQ() {
 
   const faqs = [
     {
+      question: "What's included in the Founder's Pass?",
+      answer: "The Founder's Pass gives you lifetime access to ALL Architect-tier features forever: unlimited synthetic identities, fleet orchestration, embedded AI agents, role-based sub-accounts, webhooks, IP rotation, full system logs, priority roadmap input, private Founder Discord, early beta access, and white-label dashboard. One payment of $997. No subscriptions, ever.",
+    },
+    {
+      question: 'Can I upgrade later if I miss the presale?',
+      answer: "No - the Founder's Pass is a one-time opportunity only available during presale. After launch on November 15th, the system will only be available as a $497/month subscription. Once all 100 keys are claimed, this lifetime deal disappears forever.",
+    },
+    {
+      question: 'What happens after 100 keys sell out?',
+      answer: "Once all 100 Founder's Pass keys are claimed, the presale ends permanently. The platform launches on November 15th with monthly subscription plans starting at $297/month. Founders get lifetime access with no recurring charges and exclusive perks that monthly subscribers won't receive.",
+    },
+    {
+      question: 'Is this a subscription?',
+      answer: "No! The Founder's Pass is a one-time payment of $997 for lifetime access. You'll never pay again. No monthly fees, no annual renewals, no hidden costs. Pay once, use forever. After launch, the only option will be monthly subscriptions starting at $297-$997/month.",
+    },
+    {
+      question: 'When will I get access?',
+      answer: "You'll receive your unique license key immediately after payment. The full platform launches November 15th, 12:00 PM EST. In the meantime, you'll get exclusive access to the private Founder Discord channel where you can connect with other founders, provide roadmap input, and get early previews.",
+    },
+    {
       question: 'Is this legal and safe to use?',
       answer: 'MyG InstaBot is designed for educational purposes and legitimate business use cases like managing multiple accounts for clients. We use advanced stealth techniques and human-like behavior to ensure accounts remain safe. However, you should always comply with platform Terms of Service and use responsibly.',
     },

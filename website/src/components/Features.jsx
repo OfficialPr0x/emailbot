@@ -13,6 +13,7 @@ import {
   Fingerprint,
   Layers,
   RefreshCw,
+  Crown,
 } from 'lucide-react'
 
 export default function Features() {
@@ -34,12 +35,14 @@ export default function Features() {
       title: 'Stealth Mode',
       description: 'Human-like behavior simulation, randomized patterns, and anti-detection techniques keep your accounts safe.',
       gradient: 'from-green-500 to-emerald-500',
+      founderExclusive: true,
     },
     {
       icon: Globe,
-      title: '100 Premium Proxies',
+      title: 'Unlimited Premium Proxies',
       description: 'Auto-rotating enterprise-grade proxies included. Stay anonymous and avoid IP bans with distributed requests.',
       gradient: 'from-orange-500 to-red-500',
+      founderExclusive: true,
     },
     {
       icon: BarChart3,
@@ -70,24 +73,28 @@ export default function Features() {
       title: 'Unique Fingerprints',
       description: 'Every account gets unique browser fingerprints, user agents, and behavioral patterns for maximum safety.',
       gradient: 'from-indigo-500 to-purple-500',
+      founderExclusive: true,
     },
     {
       icon: Layers,
-      title: 'Multi-Strategy',
-      description: '5 different form-filling strategies with intelligent fallbacks ensure reliability across all scenarios.',
+      title: 'Fleet Orchestration',
+      description: 'Group accounts, split tasks, and control your entire fleet dynamically with advanced automation.',
       gradient: 'from-teal-500 to-green-500',
+      founderExclusive: true,
     },
     {
       icon: RefreshCw,
-      title: 'Auto Recovery',
-      description: 'Smart error handling with exponential backoff automatically recovers from failures and continues.',
+      title: 'Auto Recovery & AI Healing',
+      description: 'Self-healing AI agents automatically recover from failures and adapt to platform changes.',
       gradient: 'from-red-500 to-pink-500',
+      founderExclusive: true,
     },
     {
       icon: Clock,
-      title: '24/7 Uptime',
-      description: '99.9% uptime with production-ready infrastructure. Create accounts anytime, anywhere, reliably.',
+      title: '24/7 Priority Support',
+      description: 'Direct Slack/Telegram line with priority queue and early access to updates. Founders-only perk.',
       gradient: 'from-blue-500 to-purple-500',
+      founderExclusive: true,
     },
   ]
 
@@ -120,8 +127,20 @@ export default function Features() {
               viewport={{ once: true }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ y: -5, scale: 1.02 }}
-              className="group glass p-6 rounded-2xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300"
+              className={`group glass p-6 rounded-2xl hover:shadow-2xl transition-all duration-300 relative ${
+                feature.founderExclusive ? 'ring-1 ring-yellow-500/30 hover:ring-yellow-500/50' : 'hover:shadow-purple-500/20'
+              }`}
             >
+              {/* Founder Badge */}
+              {feature.founderExclusive && (
+                <div className="absolute -top-2 -right-2">
+                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-2 py-1 rounded-full text-xs font-bold flex items-center space-x-1 glow">
+                    <Crown className="w-3 h-3" />
+                    <span>Founder</span>
+                  </div>
+                </div>
+              )}
+
               {/* Icon */}
               <div className={`w-12 h-12 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
                 <feature.icon className="w-6 h-6 text-white" />
@@ -149,9 +168,12 @@ export default function Features() {
             href="#pricing"
             className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-instagram rounded-full font-bold text-lg btn-ripple hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300"
           >
-            <span>Start Your Free Trial</span>
-            <Zap className="w-5 h-5" />
+            <Crown className="w-5 h-5" />
+            <span>Claim Your Founder's Pass</span>
           </a>
+          <p className="mt-4 text-sm text-gray-500">
+            Only 77 keys remaining · $997 one-time payment
+          </p>
         </motion.div>
       </div>
     </section>

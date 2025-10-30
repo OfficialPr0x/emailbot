@@ -1,52 +1,50 @@
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import Navigation from './components/Navigation'
-import Hero from './components/Hero'
-import StatsBar from './components/StatsBar'
-import Features from './components/Features'
-import HowItWorks from './components/HowItWorks'
-import Dashboard from './components/Dashboard'
-import Pricing from './components/Pricing'
-import Testimonials from './components/Testimonials'
-import FAQ from './components/FAQ'
-import CTA from './components/CTA'
-import Footer from './components/Footer'
+import React from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Documentation from './pages/Documentation'
+import APIReference from './pages/APIReference'
+import Community from './pages/Community'
+import Support from './pages/Support'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import CookiePolicy from './pages/CookiePolicy'
+import Disclaimer from './pages/Disclaimer'
+import SignIn from './pages/SignIn'
+import SignUp from './pages/SignUp'
+import Dashboard from './pages/Dashboard'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white overflow-hidden">
-      {/* Background gradient effects */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-float animation-delay-4000"></div>
-      </div>
-
-      <Navigation scrolled={scrolled} />
-      <Hero />
-      <StatsBar />
-      <Features />
-      <HowItWorks />
-      <Dashboard />
-      <Pricing />
-      <Testimonials />
-      <FAQ />
-      <CTA />
-      <Footer />
-    </div>
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/docs" element={<Documentation />} />
+        <Route path="/api-reference" element={<APIReference />} />
+        <Route path="/community" element={<Community />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/cookie-policy" element={<CookiePolicy />} />
+        <Route path="/disclaimer" element={<Disclaimer />} />
+        
+        {/* Authentication Routes */}
+        <Route path="/sign-in/*" element={<SignIn />} />
+        <Route path="/sign-up/*" element={<SignUp />} />
+        
+        {/* Protected Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Router>
   )
 }
 
 export default App
-
-

@@ -1,15 +1,17 @@
 import { createLogger } from '../utils/logger.js';
 import * as helpers from '../utils/helpers.js';
+import { AIFormAnalyzer } from './AIFormAnalyzer.js';
 
 const logger = createLogger('FormFiller');
 
 /**
- * Enhanced Form Filler with multiple strategies and AI-powered analysis
+ * Enhanced Form Filler with 15+ strategies and AI-powered analysis
  */
 export class FormFiller {
   constructor(page, options = {}) {
     this.page = page;
     this.options = options;
+    this.aiAnalyzer = options.aiAnalyzer || null;
   }
 
   /**
@@ -145,6 +147,265 @@ export class FormFiller {
           return false;
         }
       },
+
+      // Strategy 6: XPath selector
+      async () => {
+        logger.debug('Trying strategy 6: XPath selector');
+        try {
+          // Convert simple selector to XPath if possible
+          let xpath = selector;
+          if (selector.startsWith('//') === false) {
+            // Simple conversion for input names
+            xpath = `//input[@name='${selector.replace(/[^\w]/g, '')}']`;
+          }
+          
+          const element = await this.page.$(`xpath=${xpath}`);
+          if (!element) return false;
+          
+          await element.click();
+          await helpers.randomDelay(100, 200);
+          
+          if (clearFirst) {
+            await element.fill('');
+          }
+          
+          await element.type(value, { delay: 100 });
+          return true;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 7: Find by placeholder
+      async () => {
+        logger.debug('Trying strategy 7: Placeholder match');
+        try {
+          const inputs = await this.page.$$('input, textarea');
+          for (const input of inputs) {
+            const placeholder = await input.getAttribute('placeholder');
+            if (placeholder && placeholder.toLowerCase().includes(selector.toLowerCase())) {
+              await input.focus();
+              await helpers.randomDelay(100, 200);
+              
+              if (clearFirst) {
+                await input.fill('');
+              }
+              
+              await input.type(value, { delay: 100 });
+              return true;
+            }
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 8: Find by aria-label
+      async () => {
+        logger.debug('Trying strategy 8: ARIA label match');
+        try {
+          const elements = await this.page.$$('[aria-label]');
+          for (const element of elements) {
+            const ariaLabel = await element.getAttribute('aria-label');
+            if (ariaLabel && ariaLabel.toLowerCase().includes(selector.toLowerCase())) {
+              await element.focus();
+              await helpers.randomDelay(100, 200);
+              
+              if (clearFirst) {
+                await element.fill('');
+              }
+              
+              await element.type(value, { delay: 100 });
+              return true;
+            }
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 9: Find visible input by position
+      async () => {
+        logger.debug('Trying strategy 9: Visible input by position');
+        try {
+          const inputs = await this.page.$$('input[type="text"]:visible, input:not([type]):visible');
+          if (inputs.length > 0) {
+            // Try first visible input
+            const input = inputs[0];
+            await input.focus();
+            await helpers.randomDelay(100, 200);
+            
+            if (clearFirst) {
+              await input.fill('');
+            }
+            
+            await input.type(value, { delay: 100 });
+            return true;
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 10: Click + select all + paste simulation
+      async () => {
+        logger.debug('Trying strategy 10: Click + select + paste sim');
+        try {
+          await this.page.click(selector);
+          await helpers.randomDelay(200, 300);
+          await this.page.keyboard.press('Control+A');
+          await helpers.randomDelay(100, 150);
+          
+          // Type each character for paste simulation
+          for (const char of value) {
+            await this.page.keyboard.press(char);
+            await helpers.randomDelay(20, 40);
+          }
+          return true;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 11: Force focus and type
+      async () => {
+        logger.debug('Trying strategy 11: Force focus and type');
+        return await this.page.evaluate(
+          ({ sel, val }) => {
+            const element = document.querySelector(sel);
+            if (!element) return false;
+            
+            element.focus();
+            element.value = '';
+            
+            // Simulate typing with events
+            for (let i = 0; i < val.length; i++) {
+              element.value += val[i];
+              element.dispatchEvent(new KeyboardEvent('keydown', { key: val[i], bubbles: true }));
+              element.dispatchEvent(new KeyboardEvent('keypress', { key: val[i], bubbles: true }));
+              element.dispatchEvent(new InputEvent('input', { data: val[i], bubbles: true }));
+              element.dispatchEvent(new KeyboardEvent('keyup', { key: val[i], bubbles: true }));
+            }
+            
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.blur();
+            return true;
+          },
+          { sel: selector, val: value }
+        );
+      },
+
+      // Strategy 12: Find by data attributes
+      async () => {
+        logger.debug('Trying strategy 12: Data attribute match');
+        try {
+          const elements = await this.page.$$('[data-name], [data-field], [data-type]');
+          for (const element of elements) {
+            const dataName = await element.getAttribute('data-name') || 
+                           await element.getAttribute('data-field') || 
+                           await element.getAttribute('data-type');
+            if (dataName && dataName.toLowerCase().includes(selector.toLowerCase())) {
+              await element.focus();
+              await helpers.randomDelay(100, 200);
+              
+              if (clearFirst) {
+                await element.fill('');
+              }
+              
+              await element.type(value, { delay: 100 });
+              return true;
+            }
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 13: Parent-child relationship
+      async () => {
+        logger.debug('Trying strategy 13: Parent-child relationship');
+        try {
+          // Look for form container and find input within
+          const forms = await this.page.$$('form, div[role="form"]');
+          for (const form of forms) {
+            const inputs = await form.$$('input');
+            if (inputs.length > 0) {
+              const input = inputs[0];
+              await input.focus();
+              await helpers.randomDelay(100, 200);
+              
+              if (clearFirst) {
+                await input.fill('');
+              }
+              
+              await input.type(value, { delay: 100 });
+              return true;
+            }
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 14: Try with :not() exclusions
+      async () => {
+        logger.debug('Trying strategy 14: Exclusion-based selector');
+        try {
+          const exclusionSelector = `${selector}:not([type="hidden"]):not([disabled])`;
+          const element = await this.page.$(exclusionSelector);
+          if (!element) return false;
+          
+          await element.focus();
+          await helpers.randomDelay(100, 200);
+          
+          if (clearFirst) {
+            await element.fill('');
+          }
+          
+          await element.type(value, { delay: 100 });
+          return true;
+        } catch (error) {
+          return false;
+        }
+      },
+
+      // Strategy 15: AI-powered selector discovery (if available)
+      async () => {
+        if (!this.aiAnalyzer) return false;
+        
+        logger.debug('Trying strategy 15: AI-powered selector discovery');
+        try {
+          const fieldName = selector.replace(/[^\w]/g, '');
+          const aiSelectors = await this.aiAnalyzer.findFieldSelectors(fieldName);
+          
+          for (const aiSelector of aiSelectors.slice(0, 3)) {
+            try {
+              const element = await this.page.$(aiSelector);
+              if (element && await element.isVisible()) {
+                await element.focus();
+                await helpers.randomDelay(100, 200);
+                
+                if (clearFirst) {
+                  await element.fill('');
+                }
+                
+                await element.type(value, { delay: 100 });
+                return true;
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      },
     ];
 
     // Try each strategy until one succeeds
@@ -205,32 +466,270 @@ export class FormFiller {
   async selectOption(selector, value, options = {}) {
     logger.info('Selecting option', { selector, value });
 
+    // Check if we're on Google - prioritize Google strategies
+    const isGoogle = this.page.url().includes('google.com');
+
+    // Convert numeric month to month name if needed (ONLY for month fields)
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    let searchValue = value;
+    
+    // Only convert to month name if selector contains "month" and value is 1-12
+    const isMonthField = selector.toLowerCase().includes('month');
+    if (isMonthField && !isNaN(value) && parseInt(value) >= 1 && parseInt(value) <= 12) {
+      const monthIndex = parseInt(value) - 1;
+      searchValue = monthNames[monthIndex];
+      logger.info('Converted numeric month to name', { numeric: value, name: searchValue });
+    }
+
     const strategies = [
-      // Strategy 1: Standard select
+      // Strategy 1: Google Custom Dropdown (DIV-based) - PRIORITY for Google
       async () => {
-        await this.page.waitForSelector(selector, { visible: true, timeout: 5000 });
-        await this.page.selectOption(selector, value);
-        return true;
+        if (!isGoogle) return false;
+        
+        logger.debug('Trying strategy 1: Google custom dropdown', { selector, searchValue });
+        try {
+          // Find the element - could be div or button
+          const element = await this.page.$(selector);
+          if (!element) {
+            logger.debug('Element not found', { selector });
+            return false;
+          }
+
+          // Check if it's a custom Google dropdown
+          const tagName = await element.evaluate(el => el.tagName.toLowerCase());
+          logger.debug('Element found', { tagName, selector });
+          
+          if (tagName !== 'div' && tagName !== 'button') {
+            logger.debug('Not a div or button, skipping', { tagName });
+            return false;
+          }
+
+          // Click to open dropdown
+          await element.click();
+          logger.debug('Clicked element to open dropdown');
+          await helpers.randomDelay(800, 1200);
+          
+          // Take screenshot of opened dropdown for debugging
+          if (this.page.screenshot) {
+            try {
+              await this.page.screenshot({ 
+                path: `screenshots/dropdown-opened-${Date.now()}.png` 
+              });
+              logger.debug('Screenshot taken of opened dropdown');
+            } catch (e) {
+              // Ignore screenshot errors
+            }
+          }
+
+          // Wait for options to appear - try multiple possible selectors
+          let optionsAppeared = false;
+          const possibleSelectors = [
+            'div[role="option"]',
+            'div[role="listbox"]',
+            'div[jsname][role="option"]',
+            'div[data-value]',
+            'ul[role="listbox"]',
+            'div.VfPpkd-rymPhb-fpDzbe-fmcmS'  // Google Material Design menu
+          ];
+          
+          for (const sel of possibleSelectors) {
+            try {
+              await this.page.waitForSelector(sel, { 
+                timeout: 2000,
+                state: 'visible' 
+              });
+              logger.debug('Dropdown options appeared', { selector: sel });
+              optionsAppeared = true;
+              break;
+            } catch (e) {
+              continue;
+            }
+          }
+          
+          if (!optionsAppeared) {
+            logger.debug('No dropdown options appeared with any selector, trying to proceed anyway');
+          }
+
+          // Find and click the matching option - try multiple strategies
+          // First, try to get options with role="option" (most reliable for Google)
+          let options = await this.page.$$('div[role="option"]');
+          
+          if (options.length === 0) {
+            // Fallback: try other selectors
+            logger.debug('No role="option" elements found, trying alternative selectors');
+            const alternativeSelectors = [
+              'div[role="listbox"] div[jsname]',
+              'ul[role="listbox"] li',
+              'div[data-value]',
+              'div[role="listbox"] > div',
+              'div.VfPpkd-rymPhb-ibnC6b > div',  // Material Design
+              '[role="listbox"] [role="presentation"]'
+            ];
+            
+            for (const altSel of alternativeSelectors) {
+              options = await this.page.$$(altSel);
+              if (options.length > 0) {
+                logger.debug(`Found ${options.length} options with selector: ${altSel}`);
+                break;
+              }
+            }
+          }
+
+          logger.debug(`Found ${options.length} dropdown options`);
+          
+          // Log all available options for debugging
+          const allOptionsText = [];
+          for (let i = 0; i < options.length; i++) {
+            try {
+              const opt = options[i];
+              const text = await opt.textContent();
+              const dataValue = await opt.getAttribute('data-value');
+              const isVisible = await opt.isVisible();
+              allOptionsText.push({ index: i, text: text?.trim(), dataValue, isVisible });
+            } catch (e) {
+              allOptionsText.push({ index: i, error: e.message });
+            }
+          }
+          logger.info('Available dropdown options', { options: allOptionsText, searchingFor: searchValue });
+          
+          // Try to match by text content (month name or other values)
+          for (const opt of options) {
+            try {
+              const text = await opt.textContent();
+              const dataValue = await opt.getAttribute('data-value');
+              const isVisible = await opt.isVisible();
+              
+              if (!isVisible) continue;
+              
+              logger.debug('Checking option', { text: text?.trim(), dataValue, searchValue });
+              
+              // Match by text (for month names) or data-value (for numeric values)
+              if (text && text.trim() === searchValue) {
+                logger.info('Found exact text match', { text: text.trim(), searchValue });
+                await opt.scrollIntoViewIfNeeded();
+                await opt.click();
+                await helpers.randomDelay(200, 400);
+                logger.info('✓ Google dropdown option selected by text', { value: searchValue });
+                return true;
+              }
+              
+              if (dataValue && dataValue === value) {
+                logger.info('Found data-value match', { dataValue, value });
+                await opt.scrollIntoViewIfNeeded();
+                await opt.click();
+                await helpers.randomDelay(200, 400);
+                logger.info('✓ Google dropdown option selected by data-value', { value });
+                return true;
+              }
+            } catch (e) {
+              logger.debug('Error checking option', { error: e.message });
+              continue;
+            }
+          }
+
+          // If exact match fails, try by index for numeric values (original value, not converted)
+          if (!isNaN(value)) {
+            const index = parseInt(value) - 1; // Convert 1-based to 0-based
+            logger.debug('Trying index-based selection', { value, index, optionsLength: options.length });
+            
+            if (index >= 0 && index < options.length) {
+              const opt = options[index];
+              const isVisible = await opt.isVisible();
+              
+              if (isVisible) {
+                await opt.click();
+                await helpers.randomDelay(200, 400);
+                logger.info('✓ Google dropdown option selected by index', { value, index });
+                return true;
+              } else {
+                logger.debug('Option at index not visible', { index });
+              }
+            }
+          }
+
+          logger.debug('No matching option found in Google dropdown');
+          
+          // Last resort: try clicking text anywhere on page
+          try {
+            logger.debug('Trying last resort: clicking visible text on page', { searchValue });
+            const textElements = await this.page.$$(`text=${searchValue}`);
+            for (const el of textElements) {
+              try {
+                const isVisible = await el.isVisible();
+                if (isVisible) {
+                  await el.click();
+                  await helpers.randomDelay(200, 400);
+                  logger.info('✓ Clicked option by text', { searchValue });
+                  return true;
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+          } catch (e) {
+            logger.debug('Text-based click failed', { error: e.message });
+          }
+          
+          return false;
+        } catch (error) {
+          logger.debug('Google dropdown strategy failed', { error: error.message, stack: error.stack });
+          return false;
+        }
       },
 
-      // Strategy 2: Click and keyboard navigation
+      // Strategy 2: Standard select (for normal dropdowns) - with type guard
       async () => {
-        await this.page.click(selector);
-        await helpers.randomDelay(300, 500);
+        logger.debug('Trying strategy 2: Standard HTML select');
+        const element = await this.page.$(selector);
+        if (!element) return false;
+        
+        // Fast-fail: Check if element is actually a <select>
+        const tagName = await element.evaluate(el => el.tagName.toLowerCase());
+        if (tagName !== 'select') {
+          logger.debug(`Skipping standard select strategy - element is <${tagName}>, not <select>`, { selector });
+          return false;
+        }
+        
+        await this.page.waitForSelector(selector, { visible: true, timeout: 3000 });
+        
+        // Try selecting by value first
+        try {
+          await this.page.selectOption(selector, value);
+          logger.info('Selected option by value', { value });
+          return true;
+        } catch (e) {
+          // If that fails, try selecting by label (text)
+          logger.debug('Value selection failed, trying label selection', { searchValue });
+          try {
+            await this.page.selectOption(selector, { label: searchValue });
+            logger.info('Selected option by label', { label: searchValue });
+            return true;
+          } catch (e2) {
+            logger.debug('Label selection also failed', { error: e2.message });
+            return false;
+          }
+        }
+      },
+
+      // Strategy 3: Click and keyboard navigation
+      async () => {
+        await this.page.click(selector, { timeout: 3000 });
+        await helpers.randomDelay(200, 300);
         
         // Try to find the option by text
         const optionText = value;
         for (let i = 0; i < optionText.length; i++) {
           await this.page.keyboard.press(optionText[i]);
-          await helpers.randomDelay(50, 100);
+          await helpers.randomDelay(30, 50);
         }
         
-        await helpers.randomDelay(200, 400);
+        await helpers.randomDelay(100, 200);
         await this.page.keyboard.press('Enter');
         return true;
       },
 
-      // Strategy 3: DOM manipulation
+      // Strategy 4: DOM manipulation
       async () => {
         return await this.page.evaluate(
           ({ sel, val }) => {
@@ -238,7 +737,7 @@ export class FormFiller {
             if (!select) return false;
 
             // Try to find option by value
-            let option = Array.from(select.options).find(
+            let option = Array.from(select.options || []).find(
               (opt) => opt.value === val || opt.text === val
             );
 
@@ -246,6 +745,7 @@ export class FormFiller {
 
             select.value = option.value;
             select.dispatchEvent(new Event('change', { bubbles: true }));
+            select.dispatchEvent(new Event('input', { bubbles: true }));
             return true;
           },
           { sel: selector, val: value }

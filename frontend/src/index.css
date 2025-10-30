@@ -122,3 +122,100 @@
   background-size: 1000px 100%;
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Terminal-like log viewer */
+.terminal-log {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Neumorphic Loader */
+.neu-loader {
+  position: relative;
+  overflow: hidden;
+  background: #c9d5e0;
+  border-radius: 50px;
+  transform-style: preserve-3d;
+  mix-blend-mode: hard-light;
+  box-shadow:
+    25px 25px 25px -5px rgba(0, 0, 0, 0.15),
+    inset 15px 15px 10px rgba(255, 255, 255, 0.75),
+    -15px -15px 30px rgba(255, 255, 255, 0.55),
+    inset -1px -1px 10px rgba(0, 0, 0, 0.2);
+}
+
+.neu-loader-circle {
+  position: absolute;
+  inset: 27.5%;
+  background: #acbaca;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  box-shadow:
+    5px 5px 15px 0 rgba(21, 43, 74, 0.4),
+    inset 5px 5px 5px rgba(255, 255, 255, 0.55),
+    -6px -6px 10px rgba(255, 255, 255, 1);
+}
+
+.neu-loader-circle::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #667eea 100%);
+  background-size: 300% 300%;
+  mix-blend-mode: color-burn;
+  border-radius: 50%;
+  animation: neu-loader-rotate 2s linear infinite;
+}
+
+.neu-loader-circle::after {
+  content: "";
+  position: absolute;
+  inset: 25%;
+  filter: blur(0.9px);
+  background: #acbaca;
+  border-radius: 50%;
+  z-index: 1000;
+}
+
+@keyframes neu-loader-rotate {
+  0% {
+    transform: rotate(0deg);
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    transform: rotate(360deg);
+    background-position: 0% 50%;
+  }
+}
+

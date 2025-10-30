@@ -1,12 +1,14 @@
-import { useState } from 'react'
-import { Wand2, Mail, Instagram, CheckCircle2, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Wand2, Mail, Instagram, CheckCircle2, Loader2, Terminal, CheckCircle, Clock, AlertCircle, Activity } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Progress } from '@/components/ui/Progress'
 import { Badge } from '@/components/ui/Badge'
+import NeuLoader from '@/components/NeuLoader'
 import { botAPI } from '@/services/api'
 import { useStore } from '@/store/useStore'
+import socketService from '@/services/socket'
 import toast from 'react-hot-toast'
 
 export default function CreateAccount() {
@@ -14,7 +16,18 @@ export default function CreateAccount() {
   const [creating, setCreating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [currentStage, setCurrentStage] = useState('')
+  const [logs, setLogs] = useState([])
+  const [stages, setStages] = useState([
+    { id: 'profile_generation', name: 'Generate Profile', status: 'pending', progress: 0 },
+    { id: 'gmail_creation', name: 'Create Gmail', status: 'pending', progress: 0 },
+    { id: 'gmail_created', name: 'Gmail Verification', status: 'pending', progress: 0 },
+    { id: 'instagram_creation', name: 'Create Instagram', status: 'pending', progress: 0 },
+    { id: 'instagram_profile', name: 'Setup Profile', status: 'pending', progress: 0 },
+    { id: 'completed', name: 'Complete', status: 'pending', progress: 0 },
+  ])
+  const [currentJobId, setCurrentJobId] = useState(null)
   const { addAccount, addActivity } = useStore()
+  const logsEndRef = useRef(null)
 
   const [formData, setFormData] = useState({
     useAiProfile: true,
@@ -23,17 +36,127 @@ export default function CreateAccount() {
     uploadImages: false,
   })
 
+  // Auto-scroll logs to bottom
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [logs])
+
+  // Setup WebSocket listeners
+  useEffect(() => {
+    socketService.connect()
+
+    const handleJobProgress = (data) => {
+      console.log('Job progress:', data)
+      
+      if (data.progress !== undefined) {
+        setProgress(data.progress)
+      }
+      
+      if (data.stage) {
+        setCurrentStage(data.message || data.stage)
+        
+        // Update stages
+        setStages(prev => prev.map(stage => {
+          if (stage.id === data.stage) {
+            return { ...stage, status: 'in_progress', progress: data.progress }
+          }
+          // Mark previous stages as complete
+          const stageIndex = prev.findIndex(s => s.id === data.stage)
+          const currentIndex = prev.findIndex(s => s.id === stage.id)
+          if (currentIndex < stageIndex) {
+            return { ...stage, status: 'complete', progress: 100 }
+          }
+          return stage
+        }))
+      }
+      
+      if (data.message) {
+        addLog('info', data.message, data.stage)
+      }
+      
+      setCurrentJobId(data.id)
+    }
+
+    const handleJobComplete = (data) => {
+      console.log('Job complete:', data)
+      addLog('success', 'Account creation completed successfully!', 'completed')
+      setProgress(100)
+      setStages(prev => prev.map(stage => ({ ...stage, status: 'complete', progress: 100 })))
+    }
+
+    const handleJobError = (data) => {
+      console.log('Job error:', data)
+      addLog('error', data.message || 'An error occurred', 'error')
+      toast.error(data.message || 'Account creation failed')
+      setCreating(false)
+    }
+
+    const handleActivity = (data) => {
+      console.log('Activity:', data)
+      if (data.message) {
+        addLog('info', data.message, data.type)
+      }
+    }
+
+    socketService.onJobProgress(handleJobProgress)
+    socketService.onJobComplete(handleJobComplete)
+    socketService.onJobError(handleJobError)
+    socketService.onActivity(handleActivity)
+
+    return () => {
+      socketService.off('job:progress', handleJobProgress)
+      socketService.off('job:complete', handleJobComplete)
+      socketService.off('job:error', handleJobError)
+      socketService.off('activity', handleActivity)
+    }
+  }, [])
+
+  const addLog = (type, message, stage = '') => {
+    const timestamp = new Date().toLocaleTimeString()
+    setLogs(prev => [...prev, { type, message, stage, timestamp, id: Date.now() }])
+  }
+
+  const getStageIcon = (status) => {
+    switch (status) {
+      case 'complete':
+        return <CheckCircle className="h-5 w-5 text-green-500" />
+      case 'in_progress':
+        return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+      case 'error':
+        return <AlertCircle className="h-5 w-5 text-red-500" />
+      default:
+        return <Clock className="h-5 w-5 text-gray-400" />
+    }
+  }
+
+  const getLogIcon = (type) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />
+      case 'warning':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />
+      default:
+        return <Activity className="h-4 w-4 text-blue-500" />
+    }
+  }
+
   const handleCreate = async () => {
     setCreating(true)
-    setProgress(10)
+    setProgress(5)
     setCurrentStage('Starting account creation...')
+    setLogs([]) // Clear previous logs
+    addLog('info', 'Initializing account creation process...')
+    addLog('info', 'Connecting to automation server...')
 
     try {
       // Call real API
+      addLog('info', 'Sending request to backend...')
       const response = await botAPI.createAccount(formData)
       
       if (response.success) {
-        toast.success('Account created successfully!')
+        addLog('success', 'Backend accepted request, starting workflow...')
         
         // Add to local state
         if (response.data.accountId) {
@@ -47,12 +170,16 @@ export default function CreateAccount() {
           })
         }
         
-        setStep(3)
+        // Don't immediately go to step 3 - wait for job completion
+        setTimeout(() => {
+          setStep(3)
+        }, 2000)
       } else {
         throw new Error(response.error || 'Account creation failed')
       }
     } catch (error) {
       console.error('Account creation error:', error)
+      addLog('error', error.message || 'Failed to create account')
       toast.error(error.message || 'Failed to create account')
       setCreating(false)
       setProgress(0)
@@ -151,36 +278,156 @@ export default function CreateAccount() {
         </Card>
       )}
 
-      {/* Step 2: Creating */}
+      {/* Step 2: Creating with Real-time Logs */}
       {step === 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Creating Your Account</CardTitle>
-            <CardDescription>Sit back and relax - this will take 2-3 minutes</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="relative mb-8">
-                <div className="h-24 w-24 rounded-full gradient-instagram animate-pulse" />
-                <Loader2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-12 text-white animate-spin" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">{currentStage || 'Preparing...'}</h3>
-              <p className="text-lg text-purple-600 dark:text-purple-400 font-medium mb-6">{progress}% complete</p>
-              <Progress value={progress} className="w-full max-w-md h-3" />
-              
-              {!creating && (
-                <div className="mt-8 w-full max-w-md">
-                  <Button className="w-full gradient-instagram text-lg py-6" size="lg" onClick={handleCreate}>
-                    <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Start Creating Now
-                  </Button>
+        <div className="space-y-6">
+          {/* Progress Overview Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl flex items-center gap-3">
+                <NeuLoader size="sm" />
+                Creating Your Account
+              </CardTitle>
+              <CardDescription>Watch the magic happen in real-time</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Current Stage */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-blue-500 animate-pulse" />
+                  <span className="text-lg font-medium">{currentStage || 'Preparing...'}</span>
                 </div>
+                <Badge variant="secondary" className="text-lg px-4 py-1">
+                  {progress}%
+                </Badge>
+              </div>
+              
+              {/* Progress Bar */}
+              <Progress value={progress} className="h-3" />
+
+              {/* Start Button (if not creating yet) */}
+              {!creating && (
+                <Button className="w-full gradient-instagram text-lg py-6 mt-4" size="lg" onClick={handleCreate}>
+                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Start Creating Now
+                </Button>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Stages Tracker */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Workflow Stages
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {stages.map((stage, index) => (
+                  <div key={stage.id} className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 flex-1">
+                      {getStageIcon(stage.status)}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`font-medium ${
+                            stage.status === 'complete' ? 'text-green-600 dark:text-green-400' :
+                            stage.status === 'in_progress' ? 'text-blue-600 dark:text-blue-400' :
+                            'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            {stage.name}
+                          </span>
+                          {stage.status === 'in_progress' && (
+                            <span className="text-sm text-gray-500">{stage.progress}%</span>
+                          )}
+                          {stage.status === 'complete' && (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                        {stage.status === 'in_progress' && (
+                          <Progress value={stage.progress} className="h-1 mt-2" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Live Action Logs */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Terminal className="h-5 w-5" />
+                    Live Action Log
+                  </CardTitle>
+                  <CardDescription>Real-time updates from the automation process</CardDescription>
+                </div>
+                {creating && (
+                  <Badge variant="outline" className="flex items-center gap-2 animate-pulse">
+                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    Live
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-900 dark:bg-black rounded-lg p-4 h-96 overflow-y-auto terminal-log">
+                {logs.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <Terminal className="h-12 w-12 mx-auto mb-2 opacity-50 animate-pulse-glow" />
+                      <p>Waiting for process to start...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className={`flex items-start gap-2 p-2 rounded animate-fade-in-up ${
+                          log.type === 'success' ? 'bg-green-900/20 border-l-2 border-green-500' :
+                          log.type === 'error' ? 'bg-red-900/20 border-l-2 border-red-500' :
+                          log.type === 'warning' ? 'bg-yellow-900/20 border-l-2 border-yellow-500' :
+                          'bg-blue-900/10 border-l-2 border-blue-500'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {getLogIcon(log.type)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-gray-400 text-xs font-mono">{log.timestamp}</span>
+                            {log.stage && (
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {log.stage}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className={`${
+                            log.type === 'success' ? 'text-green-300' :
+                            log.type === 'error' ? 'text-red-300' :
+                            log.type === 'warning' ? 'text-yellow-300' :
+                            'text-gray-300'
+                          }`}>
+                            {log.message}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={logsEndRef} />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Step 3: Success */}
