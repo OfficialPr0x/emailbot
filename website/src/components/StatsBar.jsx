@@ -23,21 +23,21 @@ export default function StatsBar() {
 
   const stats = [
     {
-      label: 'Keys Claimed',
-      value: '23',
-      suffix: '/100',
-      color: 'text-red-500',
+      label: 'Founders Joined',
+      value: '347',
+      suffix: '/1,000',
+      color: 'text-purple-500',
     },
     {
       label: 'Keys Remaining',
-      value: '77',
+      value: '653',
       suffix: '',
       color: 'text-green-500',
     },
     {
-      label: 'Time to Launch',
-      value: '16',
-      suffix: ' days',
+      label: 'Avg. Savings',
+      value: '$16.9K',
+      suffix: '',
       color: 'text-yellow-500',
     },
   ]

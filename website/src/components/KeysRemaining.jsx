@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Flame, TrendingUp } from 'lucide-react'
 
-export default function KeysRemaining({ totalKeys = 100, soldKeys = 0 }) {
+export default function KeysRemaining({ totalKeys = 1000, soldKeys = 0 }) {
   const remaining = totalKeys - soldKeys
   const percentageSold = (soldKeys / totalKeys) * 100
   const [showPulse, setShowPulse] = useState(false)

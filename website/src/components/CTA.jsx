@@ -30,7 +30,7 @@ export default function CTA() {
               className="inline-flex items-center space-x-2 bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2 rounded-full mb-6 glow"
             >
               <Flame className="w-4 h-4 text-white animate-pulse" />
-              <span className="text-sm font-bold text-white">Only 100 Founders</span>
+              <span className="text-sm font-bold text-white">Only 1,000 Lifetime Keys</span>
             </motion.div>
 
             {/* Headline */}
@@ -41,8 +41,9 @@ export default function CTA() {
               transition={{ delay: 0.3 }}
               className="text-4xl md:text-5xl lg:text-6xl font-black mb-6"
             >
-              Only 100 Founders.{' '}
-              <span className="gradient-text">No Subscriptions. Ever.</span>
+              <span className="gradient-text">$997 Once.</span> Yours Forever.{' '}
+              <br className="hidden md:block" />
+              No Subscriptions. Ever.
             </motion.h2>
 
             {/* Subheadline */}
@@ -53,8 +54,8 @@ export default function CTA() {
               transition={{ delay: 0.4 }}
               className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto"
             >
-              Join 23 founders who already secured lifetime access. 
-              $997 one-time. Full Architect-tier forever.
+              Join 347 founders who locked in lifetime access. After 1,000 keys sell out, 
+              you'll pay <span className="text-red-400 font-bold line-through">$497/month</span> or miss out forever.
             </motion.p>
 
             {/* Benefits */}
@@ -66,9 +67,9 @@ export default function CTA() {
               className="flex flex-wrap justify-center gap-6 mb-10"
             >
               {[
-                { icon: Crown, text: 'Lifetime access' },
-                { icon: Flame, text: '77 keys remaining' },
-                { icon: Clock, text: 'Launch Nov 15th' },
+                { icon: Crown, text: 'Lifetime access - $997' },
+                { icon: Flame, text: '653 keys remaining' },
+                { icon: Clock, text: 'Price increases at 750 keys' },
               ].map((item, index) => (
                 <div
                   key={index}
@@ -108,7 +109,7 @@ export default function CTA() {
               transition={{ delay: 0.8 }}
               className="mt-8 text-sm text-gray-500"
             >
-              🔥 47 keys claimed in last 24h · 🔒 Secured by Stripe · ⚡ Instant access
+              🔥 127 keys claimed in last 24h · 💰 Save $16,895+ · 🔒 Secured by Stripe · ⚡ Instant access
             </motion.p>
             
             {/* Payment Modal */}

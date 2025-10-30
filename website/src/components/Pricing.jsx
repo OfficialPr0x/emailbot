@@ -98,7 +98,8 @@ export default function Pricing() {
                   whileTap={{ scale: 0.95 }}
                   className="w-full md:w-auto px-10 py-5 bg-gradient-instagram rounded-full font-bold text-lg btn-ripple shadow-lg shadow-purple-500/50 flex items-center justify-center space-x-2"
                 >
-                  <span>Secure Your Key Now</span>
+                  <Crown className="w-6 h-6" />
+                  <span>Secure Your Founder's Pass</span>
                   <ArrowRight className="w-5 h-5" />
                 </motion.button>
 

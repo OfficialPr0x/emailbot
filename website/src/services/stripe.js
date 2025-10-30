@@ -102,7 +102,7 @@ export async function getKeysRemaining() {
   } catch (error) {
     console.error('Error fetching keys remaining:', error)
     // Return default value on error
-    return 100
+    return 1000
   }
 }
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Flame, Crown } from 'lucide-react'
+import { ArrowRight, Flame, Crown, TrendingUp } from 'lucide-react'
 import CountdownTimer from './CountdownTimer'
 import KeysRemaining from './KeysRemaining'
 import PaymentModal from './PaymentModal'
@@ -26,7 +26,7 @@ export default function Hero() {
               className="inline-flex items-center space-x-2 bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2 rounded-full mb-6 glow"
             >
               <Flame className="w-4 h-4 text-white animate-pulse" />
-              <span className="text-sm font-bold text-white">PRESALE NOW LIVE - 100 KEYS ONLY</span>
+              <span className="text-sm font-bold text-white">⚡ PRESALE LIVE - 1,000 LIFETIME KEYS ONLY</span>
             </motion.div>
 
             {/* Main Headline */}
@@ -36,10 +36,10 @@ export default function Hero() {
               transition={{ delay: 0.3 }}
               className="text-5xl md:text-6xl lg:text-7xl font-black leading-tight mb-6"
             >
-              Secure Your{' '}
-              <span className="gradient-text">Founder's Pass</span>
+              The Last{' '}
+              <span className="gradient-text">Lifetime Deal</span>
               <br />
-              Before Launch
+              You'll Ever Need
             </motion.h1>
 
             {/* Subheadline */}
@@ -47,11 +47,17 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0"
+              className="text-xl text-gray-300 mb-4 max-w-2xl mx-auto lg:mx-0 leading-relaxed"
             >
-              Lifetime access to unlimited Instagram & Gmail account creation. 
-              Full Architect-tier features. No subscriptions, ever.{' '}
-              <span className="text-white font-semibold">$997 one-time. Only 100 spots.</span>
+              <span className="text-white font-bold">Pay $997 once. Own it forever.</span> Unlimited identities, AI self-healing, fleet orchestration, and every feature we ever build.
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="text-lg text-red-400 font-semibold mb-8 max-w-2xl mx-auto lg:mx-0"
+            >
+              ⚠️ After 1,000 keys sell out, this offer will <span className="underline">never</span> return. Then it's $497/month or nothing.
             </motion.p>
 
             {/* Countdown Timer */}
@@ -71,7 +77,7 @@ export default function Hero() {
               transition={{ delay: 0.6 }}
               className="flex justify-center lg:justify-start mb-8"
             >
-              <KeysRemaining totalKeys={100} soldKeys={23} />
+              <KeysRemaining totalKeys={1000} soldKeys={347} />
             </motion.div>
 
             {/* CTA Buttons */}
@@ -94,7 +100,8 @@ export default function Hero() {
               
               <div className="text-center lg:text-left">
                 <p className="text-sm text-gray-500">
-                  ⏰ Only <span className="text-red-500 font-bold">77 keys</span> left
+                  💰 Save <span className="text-green-400 font-bold">$16,895</span> over 3 years · 
+                  ⏰ <span className="text-red-500 font-bold">653 keys</span> remaining
                 </p>
               </div>
             </motion.div>
@@ -104,22 +111,26 @@ export default function Hero() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
-              className="mt-8 flex items-center justify-center lg:justify-start space-x-6 text-sm text-gray-400"
+              className="mt-8 flex flex-col md:flex-row items-center justify-center lg:justify-start gap-4 text-sm text-gray-400"
             >
               <div className="flex items-center space-x-2">
                 <div className="flex -space-x-2">
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3, 4, 5].map((i) => (
                     <div
                       key={i}
                       className="w-8 h-8 rounded-full bg-gradient-purple border-2 border-gray-950"
                     />
                   ))}
                 </div>
-                <span>23 founders joined</span>
+                <span className="text-white font-semibold">347 founders secured lifetime access</span>
               </div>
               <div className="flex items-center space-x-1">
-                <span className="text-red-500">🔥</span>
-                <span>3 claimed in last hour</span>
+                <span className="text-red-500 animate-pulse">🔥</span>
+                <span>18 claimed in last hour</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <TrendingUp className="w-4 h-4 text-green-400" />
+                <span>653 spots remaining</span>
               </div>
             </motion.div>
             

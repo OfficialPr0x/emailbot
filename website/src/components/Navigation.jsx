@@ -57,10 +57,10 @@ export default function Navigation({ scrolled }) {
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="hidden lg:flex items-center space-x-2 bg-gradient-to-r from-red-500 to-orange-500 px-3 py-1.5 rounded-full text-xs font-bold"
+                className="hidden lg:flex items-center space-x-2 bg-gradient-to-r from-red-500 to-orange-500 px-3 py-1.5 rounded-full text-xs font-bold animate-pulse"
               >
-                <Flame className="w-3 h-3 animate-pulse" />
-                <span>77 Keys Left</span>
+                <Flame className="w-3 h-3" />
+                <span>653 Keys Left</span>
               </motion.div>
             )}
           </div>

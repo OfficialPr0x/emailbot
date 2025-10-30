@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Crown, Check, Loader2, AlertCircle } from 'lucide-react'
 import { createCheckoutSession, redirectToCheckout } from '../services/stripe'
@@ -7,6 +7,22 @@ export default function PaymentModal({ isOpen, onClose }) {
   const [email, setEmail] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = '0px' // Prevent layout shift
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+  }, [isOpen])
 
   const features = [
     'Unlimited synthetic identities',
@@ -53,22 +69,25 @@ export default function PaymentModal({ isOpen, onClose }) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Fixed positioning with high z-index */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[999]"
+            style={{ margin: 0 }}
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 flex items-center justify-center z-[1000] p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="glass rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto glow relative"
+              onClick={(e) => e.stopPropagation()}
+              className="glass rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto glow relative pointer-events-auto"
+              style={{ margin: '0 auto' }}
             >
               {/* Close Button */}
               <button

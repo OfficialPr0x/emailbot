@@ -1,19 +1,27 @@
 import React, { useState, useEffect } from 'react'
 import Navigation from '../components/Navigation'
 import Hero from '../components/Hero'
+import SocialProofTicker from '../components/SocialProofTicker'
 import StatsBar from '../components/StatsBar'
+import ValueBreakdown from '../components/ValueBreakdown'
 import Features from '../components/Features'
+import ScarcityTiers from '../components/ScarcityTiers'
 import HowItWorks from '../components/HowItWorks'
 import Dashboard from '../components/Dashboard'
 import FounderPerks from '../components/FounderPerks'
+import ComparisonTable from '../components/ComparisonTable'
 import Pricing from '../components/Pricing'
 import Testimonials from '../components/Testimonials'
+import RiskReversal from '../components/RiskReversal'
 import FAQ from '../components/FAQ'
 import CTA from '../components/CTA'
 import Footer from '../components/Footer'
+import ExitIntentModal from '../components/ExitIntentModal'
+import PaymentModal from '../components/PaymentModal'
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,16 +42,30 @@ export default function Home() {
 
       <Navigation scrolled={scrolled} />
       <Hero />
+      <SocialProofTicker />
       <StatsBar />
+      <ValueBreakdown />
       <Features />
+      <ScarcityTiers />
       <HowItWorks />
       <Dashboard />
       <FounderPerks />
+      <ComparisonTable />
       <Pricing />
       <Testimonials />
+      <RiskReversal />
       <FAQ />
       <CTA />
       <Footer />
+      
+      {/* Exit Intent Modal */}
+      <ExitIntentModal onOpenPaymentModal={() => setIsPaymentModalOpen(true)} />
+      
+      {/* Payment Modal */}
+      <PaymentModal 
+        isOpen={isPaymentModalOpen} 
+        onClose={() => setIsPaymentModalOpen(false)} 
+      />
     </div>
   )
 }
