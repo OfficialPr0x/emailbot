@@ -58,19 +58,74 @@ export class ProxyRotator {
   }
 
   /**
-   * Get next proxy in rotation
-   * @returns {string|null} Proxy URL or null if no proxies available
+   * Get next proxy in rotation with cooldown consideration
+   * @param {number} cooldownMinutes - Minimum minutes between uses (default: 30)
+   * @returns {string|null} Next proxy URL
    */
-  getNextProxy() {
+  getNextProxy(cooldownMinutes = 30) {
     if (this.proxies.length === 0) {
-      logger.warn('No proxies available');
       return null;
     }
 
+    const now = new Date();
+    const cooldownMs = cooldownMinutes * 60 * 1000;
+
+    // Try to find a proxy that hasn't been used recently
+    let attempts = 0;
+    const maxAttempts = this.proxies.length * 2; // Allow checking all proxies twice
+
+    while (attempts < maxAttempts) {
+      const proxy = this.proxies[this.currentIndex];
+      this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
+      attempts++;
+
+      // Initialize tracking if needed
+      if (!this.usedProxies.has(proxy)) {
+        this.usedProxies.set(proxy, {
+          uses: 0,
+          successes: 0,
+          failures: 0,
+          lastUsed: null,
+        });
+      }
+
+      const stats = this.usedProxies.get(proxy);
+      
+      // Check if proxy is in cooldown
+      if (stats.lastUsed) {
+        const timeSinceLastUse = now - stats.lastUsed;
+        if (timeSinceLastUse < cooldownMs) {
+          // Skip this proxy, it's in cooldown
+          continue;
+        }
+      }
+
+      // Check if proxy has too many recent failures
+      if (stats.failures > 3 && stats.successes === 0) {
+        // Skip proxies with multiple failures and no successes
+        continue;
+      }
+
+      // This proxy is good to use
+      stats.uses++;
+      stats.lastUsed = new Date();
+
+      logger.info('Selected proxy with cooldown', {
+        proxy: this.maskProxy(proxy),
+        uses: stats.uses,
+        successRate: stats.uses > 0 ? ((stats.successes / stats.uses) * 100).toFixed(1) + '%' : 'N/A',
+        cooldownMinutes,
+      });
+
+      return proxy;
+    }
+
+    // If no proxy is available due to cooldown, use the next one anyway
+    logger.warn('All proxies in cooldown, using next available proxy');
     const proxy = this.proxies[this.currentIndex];
     this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
 
-    // Initialize tracking if not exists
+    // Initialize tracking
     if (!this.usedProxies.has(proxy)) {
       this.usedProxies.set(proxy, {
         uses: 0,

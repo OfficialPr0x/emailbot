@@ -25,11 +25,24 @@ export class WorkflowController {
       useAiProfile: options.useAiProfile !== undefined ? options.useAiProfile : true,
       headless: options.headless !== undefined ? options.headless : false,
       proxyUrl: options.proxyUrl || null,
+      useProxy: options.useProxy !== undefined ? options.useProxy : true,
       uploadImages: options.uploadImages !== undefined ? options.uploadImages : false,
       initialPostCount: options.initialPostCount || 3,
       saveAccounts: options.saveAccounts !== undefined ? options.saveAccounts : true,
       ...options,
     };
+
+    // Auto-select proxy if useProxy is true but no proxyUrl provided
+    if (this.options.useProxy && !this.options.proxyUrl) {
+      const selectedProxy = ProxyRotator.getNextProxy();
+      if (selectedProxy) {
+        this.options.proxyUrl = selectedProxy;
+        logger.info('Auto-selected proxy for account creation', { proxy: ProxyRotator.maskProxy(selectedProxy) });
+      } else {
+        logger.warn('No proxies available for auto-selection, proceeding without proxy');
+        this.options.useProxy = false;
+      }
+    }
 
     this.aiController = new OpenRouterController(process.env.OPENROUTER_API_KEY);
     this.proxyManager = new ProxyManager({ proxyUrl: this.options.proxyUrl });

@@ -66,6 +66,13 @@ export const useStore = create(
         theme: state.theme === 'light' ? 'dark' : 'light'
       })),
       
+      // View Mode (Globe or Grid)
+      viewMode: 'globe', // 'globe' or 'grid'
+      setViewMode: (mode) => set({ viewMode: mode }),
+      toggleViewMode: () => set((state) => ({
+        viewMode: state.viewMode === 'globe' ? 'grid' : 'globe'
+      })),
+      
       // Settings
       settings: {
         autoRefresh: true,
@@ -77,12 +84,89 @@ export const useStore = create(
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates }
       })),
+      
+      // Studio X State
+      studioData: {
+        currentAccount: null,
+        activeModule: 'analytics',
+        contentPosts: [],
+        personas: [],
+        metrics: null,
+        shadowbanRisk: 0,
+        proxyStatus: null,
+        isLoading: false,
+      },
+      setStudioData: (data) => set((state) => ({
+        studioData: { ...state.studioData, ...data }
+      })),
+      setStudioAccount: (account) => set((state) => ({
+        studioData: { ...state.studioData, currentAccount: account }
+      })),
+      setActiveModule: (module) => set((state) => ({
+        studioData: { ...state.studioData, activeModule: module }
+      })),
+      addContentPost: (post) => set((state) => ({
+        studioData: {
+          ...state.studioData,
+          contentPosts: [post, ...state.studioData.contentPosts]
+        }
+      })),
+      updateContentPost: (postId, updates) => set((state) => ({
+        studioData: {
+          ...state.studioData,
+          contentPosts: state.studioData.contentPosts.map(post =>
+            post.id === postId ? { ...post, ...updates } : post
+          )
+        }
+      })),
+      removeContentPost: (postId) => set((state) => ({
+        studioData: {
+          ...state.studioData,
+          contentPosts: state.studioData.contentPosts.filter(post => post.id !== postId)
+        }
+      })),
+      setPersonas: (personas) => set((state) => ({
+        studioData: { ...state.studioData, personas }
+      })),
+      addPersona: (persona) => set((state) => ({
+        studioData: {
+          ...state.studioData,
+          personas: [persona, ...state.studioData.personas]
+        }
+      })),
+      updatePersona: (personaId, updates) => set((state) => ({
+        studioData: {
+          ...state.studioData,
+          personas: state.studioData.personas.map(persona =>
+            persona.id === personaId ? { ...persona, ...updates } : persona
+          )
+        }
+      })),
+      removePersona: (personaId) => set((state) => ({
+        studioData: {
+          ...state.studioData,
+          personas: state.studioData.personas.filter(persona => persona.id !== personaId)
+        }
+      })),
+      clearStudioData: () => set({
+        studioData: {
+          currentAccount: null,
+          activeModule: 'analytics',
+          contentPosts: [],
+          personas: [],
+          metrics: null,
+          shadowbanRisk: 0,
+          proxyStatus: null,
+          isLoading: false,
+        }
+      }),
     }),
     {
       name: 'myg-bot-storage',
       partialize: (state) => ({
         theme: state.theme,
         sidebarCollapsed: state.sidebarCollapsed,
+        viewMode: state.viewMode,
         settings: state.settings,
       }),
     }

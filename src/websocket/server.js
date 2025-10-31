@@ -84,6 +84,32 @@ export class WebSocketServer {
     logger.debug('Emitted stats:update')
   }
 
+  // Studio X events
+  emitStudioMetricsUpdate(accountId, metrics) {
+    this.io.emit('studio:metrics:update', { accountId, metrics })
+    logger.debug('Emitted studio:metrics:update', { accountId })
+  }
+
+  emitStudioContentPublished(accountId, post) {
+    this.io.emit('studio:content:published', { accountId, post })
+    logger.debug('Emitted studio:content:published', { accountId, postId: post.id })
+  }
+
+  emitStudioShadowbanDetected(accountId, riskData) {
+    this.io.emit('studio:shadowban:detected', { accountId, ...riskData })
+    logger.debug('Emitted studio:shadowban:detected', { accountId, risk: riskData.risk })
+  }
+
+  emitStudioPersonaActivated(accountId, persona) {
+    this.io.emit('studio:persona:activated', { accountId, persona })
+    logger.debug('Emitted studio:persona:activated', { accountId, personaId: persona.id })
+  }
+
+  emitStudioProxyStatusChange(accountId, status) {
+    this.io.emit('studio:proxy:status', { accountId, status })
+    logger.debug('Emitted studio:proxy:status', { accountId, status: status.status })
+  }
+
   // Get connected clients count
   getClientsCount() {
     return this.io.engine.clientsCount

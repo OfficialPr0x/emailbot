@@ -1,5 +1,5 @@
 import { createLogger } from '../utils/logger.js';
-import fetch from 'node-fetch';
+import axios from 'axios';
 import { HttpProxyAgent } from 'http-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
@@ -37,7 +37,37 @@ export class ProxyManager {
   }
 
   /**
-   * Get proxy agent for HTTP requests
+   * Get axios proxy configuration
+   */
+  getAxiosProxyConfig() {
+    if (!this.proxyUrl) {
+      return null;
+    }
+
+    try {
+      const url = new URL(this.proxyUrl);
+      
+      const config = {
+        protocol: url.protocol.replace(':', ''),
+        host: url.hostname,
+        port: parseInt(url.port) || (url.protocol === 'https:' ? 443 : 80)
+      };
+
+      if (this.proxyUsername && this.proxyPassword) {
+        config.auth = {
+          username: this.proxyUsername,
+          password: this.proxyPassword
+        };
+      }
+
+      return config;
+    } catch (error) {
+      logger.error('Failed to parse proxy URL for axios', { error: error.message });
+      return null;
+    }
+  }
+  /**
+   * Get proxy agent for HTTP requests (legacy support)
    */
   getProxyAgent(url) {
     if (!this.proxyUrl) {
@@ -74,7 +104,7 @@ export class ProxyManager {
   }
 
   /**
-   * Test proxy connection
+   * Test proxy connection using axios
    */
   async testProxy() {
     if (!this.proxyUrl) {
@@ -85,17 +115,27 @@ export class ProxyManager {
     logger.info('Testing proxy connection', { proxy: this.proxyUrl });
 
     try {
-      const agent = this.getProxyAgent('https://www.google.com');
+      const proxyConfig = this.getAxiosProxyConfig();
       
-      const response = await fetch('https://www.google.com', {
-        method: 'GET',
-        agent,
-        timeout: 10000,
+      const response = await axios.get('https://ip.oxylabs.io/location', {
+        proxy: proxyConfig,
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
       });
 
-      if (response.ok) {
-        logger.info('Proxy connection successful');
-        return { success: true, message: 'Proxy connection successful' };
+      if (response.status === 200) {
+        logger.info('Proxy connection successful', { 
+          status: response.status,
+          ip: response.data?.ip || 'Unknown',
+          country: response.data?.country || 'Unknown'
+        });
+        return { 
+          success: true, 
+          message: 'Proxy connection successful',
+          data: response.data
+        };
       } else {
         logger.warn('Proxy connection failed', { status: response.status });
         return {
@@ -113,20 +153,22 @@ export class ProxyManager {
   }
 
   /**
-   * Get current IP address through proxy
+   * Get current IP address through proxy using axios
    */
   async getCurrentIP() {
     try {
-      const agent = this.getProxyAgent('https://api.ipify.org');
+      const proxyConfig = this.getAxiosProxyConfig();
       
-      const response = await fetch('https://api.ipify.org?format=json', {
-        method: 'GET',
-        agent,
-        timeout: 10000,
+      const response = await axios.get('https://api.ipify.org?format=json', {
+        proxy: proxyConfig,
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         logger.info('Current IP address', { ip: data.ip });
         return data.ip;
       } else {

@@ -43,6 +43,13 @@ model Account {
   // Relations
   activities  Activity[]
   jobs        Job[]
+  contentPosts    ContentPost[]
+  personas        PersonaProfile[]
+  metrics         AccountMetrics[]
+  automationTasks AutomationTask[]
+  contentReleases ContentRelease[]
+  influencers     Influencer[]
+  collaborations  Collaboration[]
 }
 
 model Job {
@@ -90,5 +97,123 @@ model Settings {
   key             String   @unique
   value           Json
   updatedAt       DateTime @updatedAt
+}
+
+model ContentPost {
+  id          String   @id @default(uuid())
+  accountId   String
+  type        String   // post, reel, story
+  caption     String
+  hashtags    String?
+  scheduledFor DateTime?
+  status      String   @default("draft") // draft, scheduled, published, failed
+  mediaUrl    String?
+  performance Json?    // likes, comments, shares, reach
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model PersonaProfile {
+  id          String   @id @default(uuid())
+  accountId   String
+  name        String   // e.g., "Professional", "Casual", "Motivational"
+  tone        String
+  keywords    String   // JSON array
+  bio         String?
+  hashtags    String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model AccountMetrics {
+  id              String   @id @default(uuid())
+  accountId       String
+  date            DateTime
+  followers       Int
+  following       Int
+  posts           Int
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  reach           Int      @default(0)
+  impressions     Int      @default(0)
+  shadowbanRisk   Float    @default(0.0) // 0-1 score
+  engagementRate  Float    @default(0.0)
+  
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  @@unique([accountId, date])
+}
+
+model AutomationTask {
+  id          String   @id @default(uuid())
+  accountId   String
+  type        String   // follow, unfollow, like, comment, dm
+  config      Json     // Task-specific configuration
+  schedule    String?  // Cron expression
+  status      String   @default("paused") // active, paused, completed
+  lastRun     DateTime?
+  nextRun     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model ContentRelease {
+  id          String   @id @default(uuid())
+  accountId   String
+  type        String   // image, video, carousel, reel
+  prompt      String?
+  style       String?  // preset style used
+  mediaUrls   String   // JSON array
+  metadata    Json?    // generation params, AI model used
+  linkedPostId String? // ContentPost if scheduled
+  createdAt   DateTime @default(now())
+  
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model Influencer {
+  id              String   @id @default(uuid())
+  accountId       String   // your account that's tracking them
+  username        String
+  fullName        String?
+  followersCount  Int
+  engagementRate  Float
+  niche           String
+  region          String?
+  authenticityScore Float  @default(0.0)
+  contactEmail    String?
+  contactDM       String?
+  notes           String?
+  tags            String?  // JSON array
+  discoveredAt    DateTime @default(now())
+  
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  collaborations  Collaboration[]
+}
+
+model Collaboration {
+  id              String   @id @default(uuid())
+  accountId       String
+  influencerId    String
+  status          String   @default("prospect") // prospect, outreach, negotiating, active, completed, declined
+  type            String?  // shoutout, collab_post, takeover, sponsored
+  outreachMessage String?
+  responseNotes   String?
+  agreementTerms  Json?    // deliverables, deadlines, payment
+  startDate       DateTime?
+  endDate         DateTime?
+  performance     Json?    // engagement_lift, new_followers, roi
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  account         Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  influencer      Influencer  @relation(fields: [influencerId], references: [id], onDelete: Cascade)
 }
 

@@ -398,28 +398,40 @@ Respond ONLY with valid JSON.`;
   }
 
   /**
-   * Generate a secure password
+   * Generate a secure password that meets Google's strength requirements
    * @returns {string}
    */
   generatePassword() {
     const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const lower = 'abcdefghijklmnopqrstuvwxyz';
     const numbers = '0123456789';
-    const special = '!@#$%^&*';
+    const special = '!@#$%^&*()_+-=[]{}|;:,.<>?';
     
     let password = '';
+    
+    // Ensure at least 2 of each character type for stronger passwords
+    password += upper[Math.floor(Math.random() * upper.length)];
     password += upper[Math.floor(Math.random() * upper.length)];
     password += lower[Math.floor(Math.random() * lower.length)];
+    password += lower[Math.floor(Math.random() * lower.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
     password += numbers[Math.floor(Math.random() * numbers.length)];
     password += special[Math.floor(Math.random() * special.length)];
+    password += special[Math.floor(Math.random() * special.length)];
     
+    // Add more random characters to reach 16 characters total (Google prefers longer passwords)
     const allChars = upper + lower + numbers + special;
     for (let i = 0; i < 8; i++) {
       password += allChars[Math.floor(Math.random() * allChars.length)];
     }
     
-    // Shuffle the password
-    return password.split('').sort(() => Math.random() - 0.5).join('');
+    // Shuffle the password multiple times for better randomization
+    let shuffled = password.split('');
+    for (let i = 0; i < 3; i++) {
+      shuffled = shuffled.sort(() => Math.random() - 0.5);
+    }
+    
+    return shuffled.join('');
   }
 
   /**

@@ -1,13 +1,19 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import AmbientBackground from './studio/shared/AmbientBackground'
+import ParticleField from './studio/shared/ParticleField'
 import { useStore } from '@/store/useStore'
 import { useEffect } from 'react'
 import socketService from '@/services/socket'
 import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
+import { pageFade } from '@/lib/animations'
 
 export default function Layout() {
   const { sidebarCollapsed, addActivity, updateAccount, addJob, updateJob } = useStore()
+  const location = useLocation()
 
   useEffect(() => {
     // Connect to WebSocket
@@ -15,7 +21,18 @@ export default function Layout() {
 
     // Listen for events
     socketService.onAccountCreated((account) => {
-      toast.success(`Account created: ${account.email}`)
+      toast.success(`✓ ASSET DEPLOYED: ${account.email}`, {
+        style: {
+          background: 'rgba(0, 255, 148, 0.1)',
+          color: '#00ff94',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(0, 255, 148, 0.3)',
+          fontFamily: 'JetBrains Mono, monospace',
+          textTransform: 'uppercase',
+          fontSize: '12px',
+          fontWeight: 'bold',
+        },
+      })
       addActivity({
         id: Date.now(),
         type: 'account_created',
@@ -35,7 +52,18 @@ export default function Layout() {
     })
 
     socketService.onJobComplete((data) => {
-      toast.success('Account creation completed!')
+      toast.success('✓ OPERATION COMPLETE', {
+        style: {
+          background: 'rgba(0, 255, 148, 0.1)',
+          color: '#00ff94',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(0, 255, 148, 0.3)',
+          fontFamily: 'JetBrains Mono, monospace',
+          textTransform: 'uppercase',
+          fontSize: '12px',
+          fontWeight: 'bold',
+        },
+      })
       addActivity({
         id: Date.now(),
         type: 'job_complete',
@@ -45,7 +73,18 @@ export default function Layout() {
     })
 
     socketService.onJobError((error) => {
-      toast.error(`Error: ${error.message}`)
+      toast.error(`✗ CRITICAL: ${error.message}`, {
+        style: {
+          background: 'rgba(255, 51, 102, 0.1)',
+          color: '#ff3366',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 51, 102, 0.3)',
+          fontFamily: 'JetBrains Mono, monospace',
+          textTransform: 'uppercase',
+          fontSize: '12px',
+          fontWeight: 'bold',
+        },
+      })
       addActivity({
         id: Date.now(),
         type: 'job_error',
@@ -60,22 +99,56 @@ export default function Layout() {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className={cn(
-        'flex flex-1 flex-col overflow-hidden transition-all duration-300',
-        sidebarCollapsed ? 'ml-16' : 'ml-64'
-      )}>
-        <Header />
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  )
-}
+    <>
+      {/* Particle Field Background */}
+      <ParticleField />
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ')
+      {/* Ambient Background Effects */}
+      <AmbientBackground />
+
+      {/* Main Container */}
+      <div 
+        className="flex h-screen overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(135deg, #0a0e1a 0%, #0f1419 50%, #1a1f2e 100%)',
+        }}
+      >
+        {/* Vignette Effect */}
+        <div 
+          className="absolute inset-0 pointer-events-none z-[100]"
+          style={{
+            background: 'radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.2) 100%)',
+          }}
+        />
+
+        {/* Sidebar */}
+        <Sidebar />
+
+        {/* Main Content Area */}
+        <div className={cn(
+          'flex flex-1 flex-col overflow-hidden transition-all duration-300 relative z-10',
+          sidebarCollapsed ? 'ml-16' : 'ml-72'
+        )}>
+          {/* Header */}
+          <Header />
+
+          {/* Main Content with Page Transitions */}
+          <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={pageFade}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+      </div>
+    </>
+  )
 }
 

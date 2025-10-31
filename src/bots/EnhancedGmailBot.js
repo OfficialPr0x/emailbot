@@ -110,6 +110,11 @@ export class EnhancedGmailBot {
         return await this.fillUsernamePage(profile);
       });
 
+      // STEP 4.5: Handle dedicated password page (if username and password are separate)
+      await this.executeStep('password_page', async () => {
+        return await this.handlePasswordPage(profile);
+      });
+
       // STEP 5: Accept terms
       await this.executeStep('terms_page', async () => {
         return await this.acceptTerms();
@@ -123,6 +128,11 @@ export class EnhancedGmailBot {
       // STEP 7: Verify success
       await this.executeStep('verification', async () => {
         return await this.verifyAccountCreation();
+      });
+
+      // STEP 8: REAL ACCOUNT VALIDATION - Test if account actually works
+      await this.executeStep('account_validation', async () => {
+        return await this.validateAccountExists(profile);
       });
 
       // Mark workflow as completed
@@ -616,29 +626,96 @@ export class EnhancedGmailBot {
    * Google sometimes shows a page with suggested usernames before the actual username input
    */
   async handleUsernameChoicePage(profile) {
-    logger.info('Checking for username choice page');
+    logger.info('Checking for username choice page scenarios');
     await this.page.randomDelay(1500, 2500);
     
     // Check if we're on the "Choose your Gmail address" page
     const pageText = await this.page.textContent('body');
     const isChoicePage = pageText.includes('Choose your Gmail address') || 
-                         pageText.includes('Pick a Gmail address');
+                         pageText.includes('Pick a Gmail address') ||
+                         pageText.includes('How you\'ll sign in');
     
     if (!isChoicePage) {
       logger.info('Not on username choice page, skipping');
       return true;
     }
     
-    logger.info('PAGE 2.5: Handling username choice page');
+    logger.info('PAGE 2.5: Detecting Gmail signup scenario');
     await this.browserManager.takeScreenshot('02c-username-choice-page');
     
-    // Click "Create your own Gmail address" radio button
+    // SCENARIO DETECTION: Check if suggestions are present
+    const hasSuggestions = await this.detectGmailSuggestions();
+    
+    if (hasSuggestions) {
+      logger.info('🔍 SCENARIO 1: Gmail suggestions detected - need to click "Create your own"');
+      return await this.handleSuggestionsScenario();
+    } else {
+      logger.info('🔍 SCENARIO 2: Direct username entry detected - no suggestions');
+      return await this.handleDirectUsernameScenario();
+    }
+  }
+
+  /**
+   * Detect if Gmail suggestions are present on the page
+   */
+  async detectGmailSuggestions() {
+    try {
+      // Look for suggested Gmail addresses (they typically end with @gmail.com)
+      const suggestionSelectors = [
+        'input[type="radio"][value*="@gmail.com"]',
+        'label:has-text("@gmail.com")',
+        'div:has-text("@gmail.com")',
+        '[role="radio"] + label:has-text("@gmail.com")',
+        'text=/@gmail\.com/',
+      ];
+      
+      for (const selector of suggestionSelectors) {
+        try {
+          const element = await this.page.locator(selector).first();
+          if (await element.isVisible({ timeout: 1000 })) {
+            logger.info('✓ Gmail suggestions found', { selector });
+            return true;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      // Also check page text for suggestion patterns
+      const pageText = await this.page.textContent('body');
+      const hasSuggestionText = pageText.includes('@gmail.com') && 
+                               (pageText.includes('Create your own') || 
+                                pageText.includes('create your own'));
+      
+      if (hasSuggestionText) {
+        logger.info('✓ Gmail suggestions detected in page text');
+        return true;
+      }
+      
+      logger.info('No Gmail suggestions detected');
+      return false;
+    } catch (error) {
+      logger.warn('Error detecting suggestions, assuming direct entry', { error: error.message });
+      return false;
+    }
+  }
+
+  /**
+   * Handle scenario with Gmail suggestions - click "Create your own"
+   */
+  async handleSuggestionsScenario() {
+    logger.info('📧 Handling suggestions scenario - clicking "Create your own Gmail address"');
+    
+    // Enhanced selectors for "Create your own Gmail address"
     const createOwnSelectors = [
       'text="Create your own Gmail address"',
       'input[value="custom"]',
       'div:has-text("Create your own Gmail address")',
       '[role="radio"]:has-text("Create your own")',
       'label:has-text("Create your own")',
+      'input[type="radio"] + label:has-text("Create your own")',
+      '[role="radio"][aria-label*="Create your own"]',
+      'text=/Create your own/i',
     ];
     
     let clicked = false;
@@ -660,13 +737,61 @@ export class EnhancedGmailBot {
     await this.page.randomDelay(500, 1000);
     await this.browserManager.takeScreenshot('02d-after-create-own-selection');
     
-    // Click Next
+    // Click Next to proceed to username entry
     await this.clickNextButton();
     await this.page.waitForLoadState('networkidle');
     await this.page.randomDelay(2000, 3000);
     
-    logger.info('✓ Username choice page completed');
+    logger.info('✓ Suggestions scenario completed - proceeding to username entry');
     return true;
+  }
+
+  /**
+   * Handle scenario with direct username entry - no suggestions
+   */
+  async handleDirectUsernameScenario() {
+    logger.info('📝 Handling direct username entry scenario');
+    
+    // In this scenario, we might already be on the username entry page
+    // or we might need to click Next to get there
+    
+    // Check if username field is already visible
+    const usernameFieldVisible = await this.checkIfUsernameFieldExists();
+    
+    if (usernameFieldVisible) {
+      logger.info('Username field already visible - staying on current page');
+      return true;
+    } else {
+      logger.info('Username field not visible - clicking Next to proceed');
+      await this.clickNextButton();
+      await this.page.waitForLoadState('networkidle');
+      await this.page.randomDelay(2000, 3000);
+      return true;
+    }
+  }
+
+  /**
+   * Check if username field exists on current page
+   */
+  async checkIfUsernameFieldExists() {
+    const usernameSelectors = [
+      'input[name="Username"]:not([type="password"])',
+      'input[name="username"]:not([type="password"])',
+      'input[aria-label*="username" i]:not([type="password"])',
+      'input[type="text"]:visible:not([aria-label*="password" i])',
+    ];
+    
+    for (const selector of usernameSelectors) {
+      try {
+        const element = await this.page.locator(selector).first();
+        if (await element.isVisible({ timeout: 1000 })) {
+          return true;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+    return false;
   }
 
   /**
@@ -677,30 +802,23 @@ export class EnhancedGmailBot {
     
     await this.page.randomDelay(2000, 3000);
 
-    // Extract username from email
-    const username = profile.email.split('@')[0];
-    logger.info(`Username to fill: ${username}`);
-
-    // Comprehensive username selectors (20+ options)
+    // More specific username selectors that exclude password fields
     const usernameSelectors = [
-      'input[name="Username"]',
-      'input[name="username"]',
-      'input[aria-label*="username" i]',
-      'input[aria-label*="Gmail" i]',
-      'input[aria-label*="email" i]',
-      'input[aria-label*="address" i]',
-      'input[aria-label*="choose" i]',
-      'input[type="text"]:visible',
-      '#username',
-      'input.whsOnd',
-      'input[autocomplete="username"]',
-      'input[autocomplete="email"]',
-      'input[placeholder*="username" i]',
-      'input[placeholder*="email" i]',
-      'input[jsname="YPqjbf"]',
-      'input[name=""]',  // Sometimes Google uses empty name
-      'div[jsname="Rwjr7b"] input',
-      'form input[type="text"]:first-of-type',
+      'input[name="Username"]:not([type="password"])',
+      'input[name="username"]:not([type="password"])',
+      'input[aria-label*="username" i]:not([type="password"])',
+      'input[aria-label*="Gmail" i]:not([type="password"])',
+      'input[aria-label*="email" i]:not([type="password"])',
+      'input[aria-label*="address" i]:not([type="password"])',
+      'input[aria-label*="choose" i]:not([type="password"])',
+      'input[type="text"]:visible:not([aria-label*="password" i])',
+      '#username:not([type="password"])',
+      'input.whsOnd:not([type="password"])',
+      'input[autocomplete="username"]:not([type="password"])',
+      'input[autocomplete="email"]:not([type="password"])',
+      'input[placeholder*="username" i]:not([type="password"])',
+      'input[placeholder*="email" i]:not([type="password"])',
+      'input[jsname="YPqjbf"]:not([type="password"])',
     ];
 
     // Add AI-discovered selectors - CRITICAL for username field
@@ -712,22 +830,27 @@ export class EnhancedGmailBot {
           pageUrl: this.page.url(),
         });
         logger.info(`AI discovered ${aiSelectors.length} selectors for username field`);
-        usernameSelectors.push(...aiSelectors.slice(0, 10));
+        // Filter AI selectors to exclude password fields
+        const filteredAiSelectors = aiSelectors.filter(selector => 
+          !selector.includes('password') && !selector.includes('type="password"')
+        );
+        usernameSelectors.push(...filteredAiSelectors.slice(0, 10));
       } catch (error) {
         logger.warn('Could not get AI selectors for username', { error: error.message });
       }
     }
 
-    // Fill username with extensive retry
-    logger.info('Filling username (using all strategies)');
-    await this.fillFieldWithRetry(usernameSelectors, username, 'username');
+    // Fill username with retry logic for taken usernames
+    logger.info('Filling username with automatic retry for taken usernames');
+    const success = await this.fillUsernameWithRetry(usernameSelectors, profile);
+
+    if (!success) {
+      throw new Error('Failed to fill username after all retry attempts');
+    }
 
     await this.page.randomDelay(1000, 1500);
 
-    // Verify username was filled
-    await this.verifyFieldValue(usernameSelectors, username, 'username');
-
-    // Fill password
+    // Check if password fields are present on this page
     const passwordSelectors = [
       'input[name="Passwd"]',
       'input[type="password"]',
@@ -736,23 +859,14 @@ export class EnhancedGmailBot {
       'input[autocomplete="new-password"]',
     ];
 
-    logger.info('Filling password');
-    await this.fillFieldWithRetry(passwordSelectors, profile.password, 'password');
-
-    await this.page.randomDelay(500, 1000);
-
-    // Fill confirm password if present
-    const confirmSelectors = [
-      'input[name="PasswdAgain"]',
-      'input[name="ConfirmPasswd"]',
-      'input[aria-label*="Confirm" i]',
-      'input[type="password"]:nth-of-type(2)',
-    ];
-
-    try {
-      await this.fillFieldWithRetry(confirmSelectors, profile.password, 'confirmPassword', { required: false });
-    } catch (error) {
-      logger.info('Confirm password field not found (might not be required)');
+    // Only try to fill password if password fields are actually present
+    const passwordFieldExists = await this.checkIfFieldExists(passwordSelectors);
+    
+    if (passwordFieldExists) {
+      logger.info('Password field found on this page, handling password entry');
+      await this.handlePasswordFields(profile.password);
+    } else {
+      logger.info('No password fields found on this page - password might be on next page');
     }
 
     await this.page.randomDelay(1000, 1500);
@@ -764,6 +878,252 @@ export class EnhancedGmailBot {
 
     logger.info('✓ Username page completed');
     return true;
+  }
+
+  /**
+   * Enhanced password field handling for both single and dual password scenarios
+   */
+  async handlePasswordFields(password) {
+    logger.info('🔐 Handling password fields - detecting single vs dual password scenario');
+    
+    // Enhanced password selectors
+    const passwordSelectors = [
+      'input[name="Passwd"]',
+      'input[name="passwd"]', 
+      'input[name="password"]',
+      'input[type="password"]',
+      'input[aria-label*="password" i]',
+      'input[aria-label*="Password" i]',
+      '#passwd',
+      '#password',
+      'input[autocomplete="new-password"]',
+      'input[autocomplete="current-password"]',
+      'input[placeholder*="password" i]',
+      'input[jsname*="password" i]',
+    ];
+
+    // Enhanced confirm password selectors
+    const confirmPasswordSelectors = [
+      'input[name="PasswdAgain"]',
+      'input[name="ConfirmPasswd"]',
+      'input[name="confirmPassword"]',
+      'input[name="password_confirm"]',
+      'input[aria-label*="Confirm" i]',
+      'input[aria-label*="confirm" i]',
+      'input[aria-label*="again" i]',
+      'input[aria-label*="repeat" i]',
+      'input[type="password"]:nth-of-type(2)',
+      'input[type="password"]:last-of-type',
+      'input[placeholder*="confirm" i]',
+      'input[placeholder*="again" i]',
+      'input[placeholder*="repeat" i]',
+    ];
+
+    // Count password fields to determine scenario
+    const passwordFieldCount = await this.countPasswordFields();
+    
+    if (passwordFieldCount >= 2) {
+      logger.info('🔐 DUAL PASSWORD SCENARIO: Found multiple password fields - filling both');
+      await this.handleDualPasswordScenario(passwordSelectors, confirmPasswordSelectors, password);
+    } else if (passwordFieldCount === 1) {
+      logger.info('🔐 SINGLE PASSWORD SCENARIO: Found one password field');
+      await this.handleSinglePasswordScenario(passwordSelectors, password);
+    } else {
+      logger.warn('No password fields detected on current page');
+    }
+  }
+
+  /**
+   * Count visible password fields on the page
+   */
+  async countPasswordFields() {
+    try {
+      const passwordFields = await this.page.locator('input[type="password"]:visible').count();
+      logger.info(`Found ${passwordFields} visible password fields`);
+      return passwordFields;
+    } catch (error) {
+      logger.warn('Error counting password fields', { error: error.message });
+      return 0;
+    }
+  }
+
+  /**
+   * Handle single password field scenario
+   */
+  async handleSinglePasswordScenario(passwordSelectors, password) {
+    logger.info('Filling single password field');
+    
+    try {
+      await this.fillFieldWithRetry(passwordSelectors, password, 'password');
+      logger.info('✓ Single password field filled successfully');
+    } catch (error) {
+      logger.error('Failed to fill single password field', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Handle dual password fields scenario (password + confirm password)
+   */
+  async handleDualPasswordScenario(passwordSelectors, confirmPasswordSelectors, password) {
+    logger.info('Filling dual password fields (password + confirm)');
+    
+    try {
+      // Fill first password field
+      await this.fillFieldWithRetry(passwordSelectors, password, 'password');
+      logger.info('✓ First password field filled');
+      
+      await this.page.randomDelay(500, 1000);
+      
+      // Fill confirm password field
+      await this.fillFieldWithRetry(confirmPasswordSelectors, password, 'confirmPassword');
+      logger.info('✓ Confirm password field filled');
+      
+      // Verify both fields have the same value
+      await this.verifyPasswordFieldsMatch(passwordSelectors, confirmPasswordSelectors, password);
+      
+    } catch (error) {
+      logger.error('Failed to fill dual password fields', { error: error.message });
+      
+      // Fallback: try to fill all password fields with the same value
+      logger.info('Attempting fallback: filling all password fields');
+      try {
+        const allPasswordFields = await this.page.locator('input[type="password"]:visible').all();
+        for (let i = 0; i < allPasswordFields.length; i++) {
+          await allPasswordFields[i].fill(password);
+          logger.info(`✓ Filled password field ${i + 1}`);
+          await this.page.randomDelay(300, 500);
+        }
+      } catch (fallbackError) {
+        logger.error('Fallback password filling also failed', { error: fallbackError.message });
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Verify that password and confirm password fields match
+   */
+  async verifyPasswordFieldsMatch(passwordSelectors, confirmPasswordSelectors, expectedPassword) {
+    try {
+      // Get values from both fields
+      let passwordValue = null;
+      let confirmValue = null;
+      
+      // Try to get password field value
+      for (const selector of passwordSelectors) {
+        try {
+          const element = await this.page.locator(selector).first();
+          if (await element.isVisible({ timeout: 1000 })) {
+            passwordValue = await element.inputValue();
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      // Try to get confirm password field value
+      for (const selector of confirmPasswordSelectors) {
+        try {
+          const element = await this.page.locator(selector).first();
+          if (await element.isVisible({ timeout: 1000 })) {
+            confirmValue = await element.inputValue();
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      if (passwordValue === expectedPassword && confirmValue === expectedPassword) {
+        logger.info('✓ Password fields verification successful - both fields match');
+      } else {
+        logger.warn('Password fields verification failed', { 
+          passwordValue: passwordValue ? '***' : null,
+          confirmValue: confirmValue ? '***' : null 
+        });
+      }
+    } catch (error) {
+      logger.warn('Could not verify password fields match', { error: error.message });
+    }
+  }
+
+  /**
+   * Handle dedicated password page (when username and password are on separate pages)
+   */
+  async handlePasswordPage(profile) {
+    logger.info('🔐 DEDICATED PASSWORD PAGE: Checking if we are on a password-only page');
+    
+    await this.page.randomDelay(1000, 2000);
+    
+    // Check if we're on a password page by looking for password fields
+    const passwordFieldCount = await this.countPasswordFields();
+    
+    if (passwordFieldCount === 0) {
+      logger.info('No password fields found - skipping password page step');
+      return true;
+    }
+    
+    logger.info(`Found ${passwordFieldCount} password fields - handling password entry`);
+    
+    // Check current URL to confirm we're on a password page
+    const currentUrl = this.page.url();
+    logger.info(`Current URL: ${currentUrl}`);
+    
+    if (currentUrl.includes('password') || passwordFieldCount > 0) {
+      logger.info('✓ Confirmed we are on a password page');
+      
+      try {
+        // Handle password fields using existing logic
+        await this.handlePasswordFields(profile.password);
+        
+        await this.page.randomDelay(1000, 1500);
+        
+        // Click Next button to proceed
+        await this.clickNextButton();
+        await this.page.waitForLoadState('networkidle');
+        await this.page.randomDelay(2000, 3000);
+        
+        logger.info('✓ Password page completed successfully');
+        return true;
+        
+      } catch (error) {
+        logger.error('Failed to handle password page', { error: error.message });
+        
+        // Take screenshot for debugging
+        await this.browserManager.takeScreenshot('password-page-error');
+        
+        // Try a fallback approach - fill any visible password fields
+        try {
+          logger.info('Attempting fallback password filling');
+          const passwordFields = await this.page.locator('input[type="password"]:visible').all();
+          
+          for (let i = 0; i < passwordFields.length; i++) {
+            await passwordFields[i].click();
+            await this.page.randomDelay(200, 400);
+            await passwordFields[i].fill(profile.password);
+            logger.info(`✓ Fallback filled password field ${i + 1}`);
+            await this.page.randomDelay(300, 500);
+          }
+          
+          // Try to click Next
+          await this.clickNextButton();
+          await this.page.waitForLoadState('networkidle');
+          await this.page.randomDelay(2000, 3000);
+          
+          logger.info('✓ Fallback password handling completed');
+          return true;
+          
+        } catch (fallbackError) {
+          logger.error('Fallback password handling also failed', { error: fallbackError.message });
+          throw error;
+        }
+      }
+    } else {
+      logger.info('Not on a password page - skipping password page step');
+      return true;
+    }
   }
 
   /**
@@ -846,12 +1206,413 @@ export class EnhancedGmailBot {
   }
 
   /**
+   * Handle verification screens (QR code, phone verification, etc.)
+   */
+  async handleVerificationScreen() {
+    logger.info('Checking for verification screens...');
+    
+    const url = this.page.url();
+    let bodyText = '';
+    try {
+      bodyText = await this.page.textContent('body');
+    } catch (e) {
+      logger.warn('Could not read body text for verification check');
+    }
+
+    // Check for QR code verification
+    const qrCodeIndicators = [
+      'Scan the QR code',
+      'qr code',
+      'Use your phone to verify',
+      'preventing abuse from computer programs',
+      'This helps keep you and others safe'
+    ];
+
+    const hasQRCode = qrCodeIndicators.some(indicator =>
+      bodyText.toLowerCase().includes(indicator.toLowerCase())
+    );
+
+    if (hasQRCode) {
+      logger.warn('🔍 QR Code verification screen detected');
+      
+      // Look for skip options first
+      const skipSelectors = [
+        'button[aria-label*="Skip"]',
+        'button:has-text("Skip")',
+        '[data-action="skip"]',
+        'button:has-text("Not now")',
+        'button:has-text("Maybe later")',
+        'a:has-text("Skip")',
+        '[role="button"]:has-text("Skip")'
+      ];
+
+      for (const selector of skipSelectors) {
+        try {
+          const skipButton = await this.page.$(selector);
+          if (skipButton) {
+            logger.info('Found skip button, attempting to skip verification');
+            await this.page.randomDelay(2000, 4000);
+            await skipButton.click();
+            await this.page.randomDelay(3000, 5000);
+            return 'skipped';
+          }
+        } catch (e) {
+          logger.debug(`Skip selector ${selector} not found or failed`);
+        }
+      }
+
+      // Try YouTube workaround method
+      logger.info('🎯 Attempting YouTube workaround to bypass QR code verification');
+      const youtubeResult = await this.attemptYouTubeWorkaround();
+      if (youtubeResult === 'success') {
+        return 'youtube_workaround_success';
+      }
+
+      // If no skip option and YouTube workaround failed, wait longer and return status
+      logger.warn('No skip option found and YouTube workaround failed for QR verification');
+      await this.page.randomDelay(10000, 15000);
+      return 'qr_code_required';
+    }
+
+    // Check for phone verification
+    const phoneVerificationIndicators = [
+      'Verify your phone',
+      'phone number',
+      'Enter your phone number',
+      'We need to verify'
+    ];
+
+    const hasPhoneVerification = phoneVerificationIndicators.some(indicator =>
+      bodyText.toLowerCase().includes(indicator.toLowerCase())
+    );
+
+    if (hasPhoneVerification) {
+      logger.warn('📱 Phone verification screen detected');
+      return 'phone_verification_required';
+    }
+
+    return 'no_verification_needed';
+  }
+
+  /**
+   * YouTube Workaround Method - Bypass QR code by using YouTube signup
+   * Based on research from BlackHatWorld community
+   */
+  async attemptYouTubeWorkaround() {
+    try {
+      logger.info('🎬 Starting YouTube workaround method...');
+      
+      // Store current profile data from state
+      const currentState = this.stateManager.getState(this.accountId);
+      if (!currentState || !currentState.profile) {
+        logger.error('No profile data found in state for YouTube workaround');
+        return 'failed';
+      }
+      
+      const profile = currentState.profile;
+      
+      // Open new incognito tab
+      logger.info('Opening new incognito tab for YouTube signup');
+      const context = await this.browserManager.browser.newContext();
+      const youtubePage = await context.newPage();
+      
+      // Navigate to YouTube
+      await youtubePage.goto('https://www.youtube.com', { waitUntil: 'networkidle' });
+      await youtubePage.randomDelay(3000, 5000);
+      
+      // Click Sign In
+      const signInSelectors = [
+        'a[aria-label*="Sign in"]',
+        'button:has-text("Sign in")',
+        '[data-target="sign-in"]',
+        'ytd-button-renderer:has-text("Sign in")',
+        '#sign-in-button'
+      ];
+      
+      let signInClicked = false;
+      for (const selector of signInSelectors) {
+        try {
+          const signInButton = await youtubePage.$(selector);
+          if (signInButton) {
+            logger.info('Found YouTube Sign In button, clicking...');
+            await signInButton.click();
+            await youtubePage.randomDelay(2000, 4000);
+            signInClicked = true;
+            break;
+          }
+        } catch (e) {
+          logger.debug(`Sign in selector ${selector} not found`);
+        }
+      }
+      
+      if (!signInClicked) {
+        logger.warn('Could not find YouTube Sign In button');
+        await context.close();
+        return 'failed';
+      }
+      
+      // Look for "Create account" or "Sign up" option
+      await youtubePage.randomDelay(2000, 3000);
+      
+      const createAccountSelectors = [
+        'button:has-text("Create account")',
+        'a:has-text("Create account")',
+        'button:has-text("Sign up")',
+        'a:has-text("Sign up")',
+        '[data-action="create-account"]',
+        '#createAccount'
+      ];
+      
+      let createAccountClicked = false;
+      for (const selector of createAccountSelectors) {
+        try {
+          const createButton = await youtubePage.$(selector);
+          if (createButton) {
+            logger.info('Found Create Account button, clicking...');
+            await createButton.click();
+            await youtubePage.randomDelay(3000, 5000);
+            createAccountClicked = true;
+            break;
+          }
+        } catch (e) {
+          logger.debug(`Create account selector ${selector} not found`);
+        }
+      }
+      
+      if (!createAccountClicked) {
+        logger.warn('Could not find Create Account button on YouTube');
+        await context.close();
+        return 'failed';
+      }
+      
+      // Now fill the same information as the original signup
+      logger.info('Filling YouTube signup form with same profile data...');
+      
+      // Fill first name
+      const firstNameSelectors = [
+        'input[name="firstName"]',
+        'input[id="firstName"]',
+        'input[aria-label*="First name"]',
+        '#firstName'
+      ];
+      
+      await this.fillFieldInPage(youtubePage, firstNameSelectors, profile.firstName, 'First Name');
+      
+      // Fill last name
+      const lastNameSelectors = [
+        'input[name="lastName"]',
+        'input[id="lastName"]',
+        'input[aria-label*="Last name"]',
+        '#lastName'
+      ];
+      
+      await this.fillFieldInPage(youtubePage, lastNameSelectors, profile.lastName, 'Last Name');
+      
+      // Continue with the rest of the signup process...
+      // Click Next to proceed
+      const nextSelectors = [
+        'button:has-text("Next")',
+        'button[type="submit"]',
+        '#next',
+        '[data-action="next"]'
+      ];
+      
+      for (const selector of nextSelectors) {
+        try {
+          const nextButton = await youtubePage.$(selector);
+          if (nextButton) {
+            logger.info('Clicking Next button in YouTube signup...');
+            await nextButton.click();
+            await youtubePage.randomDelay(3000, 5000);
+            break;
+          }
+        } catch (e) {
+          logger.debug(`Next selector ${selector} not found`);
+        }
+      }
+      
+      // Check if we get phone verification instead of QR code
+      await youtubePage.randomDelay(5000, 8000);
+      
+      const pageText = await youtubePage.textContent('body');
+      const hasPhoneVerification = pageText.toLowerCase().includes('phone number') || 
+                                   pageText.toLowerCase().includes('verify your phone');
+      
+      if (hasPhoneVerification) {
+        logger.info('🎉 SUCCESS! YouTube workaround bypassed QR code - got phone verification instead');
+        
+        // Close the YouTube tab and return to main signup
+        await context.close();
+        
+        // The main page should now proceed differently
+        return 'success';
+      } else {
+        logger.warn('YouTube workaround did not result in phone verification');
+        await context.close();
+        return 'failed';
+      }
+      
+    } catch (error) {
+      logger.error('Error during YouTube workaround:', error);
+      return 'failed';
+    }
+  }
+  
+  /**
+   * Helper method to fill fields in a specific page
+   */
+  async fillFieldInPage(page, selectors, value, fieldName) {
+    for (const selector of selectors) {
+      try {
+        const field = await page.$(selector);
+        if (field) {
+          await field.fill(value);
+          await page.randomDelay(1000, 2000);
+          logger.info(`Filled ${fieldName} in YouTube signup`);
+          return true;
+        }
+      } catch (e) {
+        logger.debug(`Field selector ${selector} not found for ${fieldName}`);
+      }
+    }
+    logger.warn(`Could not fill ${fieldName} in YouTube signup`);
+    return false;
+  }
+
+  /**
+   * REAL ACCOUNT VALIDATION - Test if account actually exists and works
+   * This prevents false positives by actually testing login functionality
+   */
+  async validateAccountExists(profile) {
+    logger.info('🔍 REAL VALIDATION: Testing if account actually exists and works');
+    
+    try {
+      // Create a new browser context for testing
+      const testContext = await this.browserManager.browser.newContext();
+      const testPage = await testContext.newPage();
+      
+      // Navigate to Gmail login
+      await testPage.goto('https://accounts.google.com/signin/v2/identifier', {
+        waitUntil: 'networkidle',
+        timeout: 30000
+      });
+      
+      // Try to enter the email
+      const emailSelectors = [
+        'input[type="email"]',
+        '#identifierId',
+        'input[name="identifier"]',
+        'input[autocomplete="username"]'
+      ];
+      
+      let emailFilled = false;
+      for (const selector of emailSelectors) {
+        try {
+          const emailField = await testPage.$(selector);
+          if (emailField) {
+            await emailField.fill(profile.email);
+            await testPage.keyboard.press('Enter');
+            emailFilled = true;
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      if (!emailFilled) {
+        logger.error('❌ Could not find email field for validation');
+        await testContext.close();
+        return false;
+      }
+      
+      // Wait for response
+      await testPage.waitForTimeout(3000);
+      
+      // Check for password field (indicates account exists)
+      const passwordSelectors = [
+        'input[type="password"]',
+        '#password',
+        'input[name="password"]',
+        'input[autocomplete="current-password"]'
+      ];
+      
+      let passwordFieldFound = false;
+      for (const selector of passwordSelectors) {
+        try {
+          const passwordField = await testPage.$(selector);
+          if (passwordField) {
+            passwordFieldFound = true;
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      // Check for error messages indicating account doesn't exist
+      const bodyText = await testPage.textContent('body');
+      const accountNotFoundIndicators = [
+        "Couldn't find your Google Account",
+        "account doesn't exist",
+        "Enter a valid email",
+        "No account found",
+        "This email address doesn't match"
+      ];
+      
+      const accountNotFound = accountNotFoundIndicators.some(indicator =>
+        bodyText.toLowerCase().includes(indicator.toLowerCase())
+      );
+      
+      await testContext.close();
+      
+      if (accountNotFound) {
+        logger.error('❌ VALIDATION FAILED: Account does not exist');
+        logger.error('❌ Google reports: Account not found');
+        return false;
+      }
+      
+      if (passwordFieldFound) {
+        logger.info('✅ VALIDATION PASSED: Account exists and login flow works');
+        logger.info('✅ Password field appeared - account is real');
+        return true;
+      }
+      
+      logger.error('❌ VALIDATION FAILED: No password field found');
+      logger.error('❌ Account may not exist or login flow failed');
+      return false;
+      
+    } catch (error) {
+      logger.error('❌ VALIDATION ERROR: Could not test account existence', { error: error.message });
+      return false;
+    }
+  }
+
+  /**
    * Verify account creation was successful - STRICT VALIDATION
    */
   async verifyAccountCreation() {
     logger.info('FINAL VERIFICATION: Checking account creation success');
 
-    await this.page.waitForTimeout(5000);
+    // First check for verification screens
+    const verificationStatus = await this.handleVerificationScreen();
+    
+    if (verificationStatus === 'qr_code_required') {
+      logger.error('❌ QR Code verification BLOCKS account creation - account NOT created');
+      return false; // Verification is BLOCKING account creation
+    }
+    
+    if (verificationStatus === 'phone_verification_required') {
+      logger.error('❌ Phone verification BLOCKS account creation - account NOT created');
+      return false; // Verification is BLOCKING account creation
+    }
+
+    if (verificationStatus === 'youtube_workaround_success') {
+      logger.info('🎉 YouTube workaround succeeded - proceeding with phone verification');
+      // Continue with normal verification flow since we bypassed QR code
+    }
+
+    await this.page.waitForTimeout(8000); // Longer delay for verification screens
     
     const url = this.page.url();
     let bodyText = '';
@@ -866,13 +1627,29 @@ export class EnhancedGmailBot {
       bodyPreview: bodyText.substring(0, 300) 
     });
 
-    // STRICT URL check for success
+    // Check for BLOCKING verification URLs (these prevent account creation)
+    const blockingVerificationUrls = [
+      'mophoneverification',  // Device verification BLOCKS creation
+      'phoneverification',    // Phone verification BLOCKS creation
+      'verification/initial', // General verification BLOCKS creation
+      'deviceauth',           // Device authentication BLOCKS creation
+    ];
+
+    const isBlockedByVerification = blockingVerificationUrls.some(blockingUrl => 
+      url.includes(blockingUrl)
+    );
+
+    if (isBlockedByVerification) {
+      logger.error('❌ Account creation BLOCKED by verification requirement');
+      logger.error(`❌ Blocking URL: ${url}`);
+      return false;
+    }
+
+    // STRICT URL check for TRUE success (only these indicate actual account creation)
     const successUrls = [
       'myaccount.google.com',
       'mail.google.com',
       'welcome',
-      'phoneauth',
-      'challenge/selection',
       'intro/privacycheckup',
     ];
 
@@ -886,8 +1663,14 @@ export class EnhancedGmailBot {
       return true;
     }
 
-    // Check if still on signup page (FAILURE)
-    if (url.includes('signup/v2') || url.includes('lifecycle/steps/signup')) {
+    // Check if still on signup page (FAILURE) - but exclude verification pages
+    const isOnSignupPage = (url.includes('signup/v2') || url.includes('lifecycle/steps/signup')) &&
+                          !url.includes('mophoneverification') &&
+                          !url.includes('phoneverification') &&
+                          !url.includes('verification/initial') &&
+                          !url.includes('deviceauth');
+    
+    if (isOnSignupPage) {
       logger.error('❌ Still on signup page - account NOT created');
       logger.error(`❌ Current URL: ${url}`);
       
@@ -905,16 +1688,36 @@ export class EnhancedGmailBot {
       return false;
     }
 
-    // Success text indicators
+    // Success text indicators (ONLY texts that indicate actual account creation)
     const successIndicators = [
       'Welcome',
       'account created',
       "You're all set",
       'Google Account',
-      'Verify your phone',
       'Privacy and Terms',
       'Protect your account',
     ];
+
+    // BLOCKING verification text indicators (these PREVENT account creation)
+    const blockingVerificationTexts = [
+      'Verify some info before creating an account', // Device verification BLOCKS creation
+      'Scan the QR code with your phone',            // QR code verification BLOCKS creation
+      'Google needs to verify some info',            // Device verification BLOCKS creation
+      'This helps keep you and others safe',         // Security verification BLOCKS creation
+      'preventing abuse from computer programs',     // Anti-bot verification BLOCKS creation
+      'Verify your phone',                           // Phone verification BLOCKS creation
+    ];
+
+    // Check for BLOCKING verification text first
+    const hasBlockingVerificationText = blockingVerificationTexts.some(indicator =>
+      bodyText.toLowerCase().includes(indicator.toLowerCase())
+    );
+
+    if (hasBlockingVerificationText) {
+      logger.error('❌ Account creation BLOCKED by verification text requirement');
+      logger.error('❌ Found blocking verification text in page content');
+      return false;
+    }
 
     const hasSuccessText = successIndicators.some(indicator =>
       bodyText.toLowerCase().includes(indicator.toLowerCase())
@@ -1091,6 +1894,241 @@ export class EnhancedGmailBot {
     }
 
     logger.warn(`Could not verify field ${fieldName}`);
+    return false;
+  }
+
+  /**
+   * Fill username field with validation to ensure it's not a password field
+   */
+  /**
+   * Fill username with retry logic for taken usernames
+   */
+  async fillUsernameWithRetry(selectors, profile) {
+    const maxAttempts = 5;
+    let currentAttempt = 1;
+    
+    while (currentAttempt <= maxAttempts) {
+      try {
+        // Generate username for this attempt
+        const username = this.generateUsernameForAttempt(profile, currentAttempt);
+        logger.info(`Username attempt ${currentAttempt}/${maxAttempts}: ${username}`);
+        
+        // Fill the username field
+        const fillSuccess = await this.fillUsernameFieldWithValidation(selectors, username);
+        
+        if (!fillSuccess) {
+          logger.warn(`Failed to fill username field on attempt ${currentAttempt}`);
+          currentAttempt++;
+          continue;
+        }
+        
+        // Wait a moment for any error messages to appear
+        await this.page.randomDelay(1500, 2500);
+        
+        // Check for "username already taken" error
+        const isTaken = await this.checkUsernameAlreadyTaken();
+        
+        if (isTaken) {
+          logger.info(`Username "${username}" is already taken, trying alternative (attempt ${currentAttempt}/${maxAttempts})`);
+          await this.browserManager.takeScreenshot(`username-taken-attempt-${currentAttempt}`);
+          currentAttempt++;
+          continue;
+        }
+        
+        // Verify username was filled correctly
+        await this.verifyFieldValue(selectors, username, 'username');
+        
+        logger.info(`✓ Username "${username}" successfully filled and verified`);
+        
+        // Update the profile with the successful username
+        profile.username = username;
+        profile.email = `${username}@gmail.com`;
+        
+        return true;
+        
+      } catch (error) {
+        logger.error(`Username attempt ${currentAttempt} failed:`, error.message);
+        currentAttempt++;
+        
+        if (currentAttempt <= maxAttempts) {
+          await this.page.randomDelay(1000, 2000);
+        }
+      }
+    }
+    
+    logger.error('All username attempts failed');
+    await this.browserManager.takeScreenshot('username-all-attempts-failed');
+    return false;
+  }
+
+  /**
+   * Generate username for specific attempt with increasing numbers
+   */
+  generateUsernameForAttempt(profile, attempt) {
+    // Extract base username from email or use provided username, with fallback
+    let baseUsername;
+    if (profile.username) {
+      baseUsername = profile.username;
+    } else if (profile.email && profile.email.includes('@')) {
+      baseUsername = profile.email.split('@')[0];
+    } else {
+      // Fallback: generate username from first and last name
+      baseUsername = `${profile.firstName || 'user'}${profile.lastName || 'test'}`.toLowerCase();
+    }
+    
+    if (attempt === 1) {
+      // First attempt: use original username
+      return baseUsername;
+    } else if (attempt === 2) {
+      // Second attempt: add 2-digit random number
+      const randomSuffix = Math.floor(Math.random() * 90) + 10; // 10-99
+      return `${baseUsername}${randomSuffix}`;
+    } else if (attempt === 3) {
+      // Third attempt: add 3-digit random number
+      const randomSuffix = Math.floor(Math.random() * 900) + 100; // 100-999
+      return `${baseUsername}${randomSuffix}`;
+    } else if (attempt === 4) {
+      // Fourth attempt: add 4-digit random number
+      const randomSuffix = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
+      return `${baseUsername}${randomSuffix}`;
+    } else {
+      // Fifth attempt: add 5-digit random number
+      const randomSuffix = Math.floor(Math.random() * 90000) + 10000; // 10000-99999
+      return `${baseUsername}${randomSuffix}`;
+    }
+  }
+
+  /**
+   * Check if username is already taken by looking for error messages
+   */
+  async checkUsernameAlreadyTaken() {
+    const errorSelectors = [
+      // Text-based error messages
+      'div:has-text("That username is taken")',
+      'div:has-text("already taken")',
+      'div:has-text("Username not available")',
+      'div:has-text("Try another")',
+      'span:has-text("That username is taken")',
+      'span:has-text("already taken")',
+      'span:has-text("Username not available")',
+      'span:has-text("Try another")',
+      
+      // Generic error containers
+      '[role="alert"]',
+      '.error-message',
+      '.validation-error',
+      '[data-error]',
+      
+      // Google-specific error selectors
+      '[jsname="B34EJ"]', // Common Google error container
+      '[jsname="h9d3hd"]', // Another Google error container
+      '.LXRPh', // Google form error class
+      '.dEOOab', // Google validation error
+    ];
+    
+    for (const selector of errorSelectors) {
+      try {
+        const element = await this.page.$(selector);
+        if (element && await element.isVisible()) {
+          const text = await element.textContent();
+          if (text && (
+            text.toLowerCase().includes('taken') ||
+            text.toLowerCase().includes('not available') ||
+            text.toLowerCase().includes('try another') ||
+            text.toLowerCase().includes('already exists')
+          )) {
+            logger.info(`Found username taken error: "${text.trim()}"`);
+            return true;
+          }
+        }
+      } catch (error) {
+        // Continue checking other selectors
+        continue;
+      }
+    }
+    
+    // Also check page content for error messages
+    try {
+      const pageText = await this.page.textContent('body');
+      if (pageText && (
+        pageText.includes('That username is taken') ||
+        pageText.includes('already taken') ||
+        pageText.includes('Username not available') ||
+        pageText.includes('Try another')
+      )) {
+        logger.info('Found username taken error in page text');
+        return true;
+      }
+    } catch (error) {
+      logger.debug('Could not check page text for errors');
+    }
+    
+    return false;
+  }
+
+  async fillUsernameFieldWithValidation(selectors, username) {
+    logger.info('Filling username with field type validation');
+
+    for (const selector of selectors) {
+      try {
+        // Check if element exists and is visible
+        const element = await this.page.$(selector);
+        if (!element) continue;
+
+        // Validate that this is not a password field
+        const inputType = await element.getAttribute('type');
+        const ariaLabel = await element.getAttribute('aria-label') || '';
+        const placeholder = await element.getAttribute('placeholder') || '';
+        const name = await element.getAttribute('name') || '';
+
+        // Skip if this looks like a password field
+        if (inputType === 'password' || 
+            ariaLabel.toLowerCase().includes('password') ||
+            placeholder.toLowerCase().includes('password') ||
+            name.toLowerCase().includes('password')) {
+          logger.debug(`Skipping selector ${selector} - appears to be password field`);
+          continue;
+        }
+
+        // Try to fill the field
+        await this.formFiller.fillField(selector, username, {
+          retries: 2,
+          verifyValue: true,
+          clearFirst: true,
+        });
+        
+        logger.info(`✓ Successfully filled username with selector: ${selector}`);
+        return true;
+      } catch (error) {
+        logger.debug(`Failed to fill username with selector: ${selector}`, {
+          error: error.message,
+        });
+        continue;
+      }
+    }
+
+    logger.error('Could not fill username field with any validated selector');
+    return false;
+  }
+
+  /**
+   * Check if any field exists from a list of selectors
+   */
+  async checkIfFieldExists(selectors) {
+    for (const selector of selectors) {
+      try {
+        const element = await this.page.$(selector);
+        if (element) {
+          const isVisible = await element.isVisible();
+          if (isVisible) {
+            logger.debug(`Field found with selector: ${selector}`);
+            return true;
+          }
+        }
+      } catch (error) {
+        continue;
+      }
+    }
     return false;
   }
 

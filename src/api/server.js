@@ -8,6 +8,7 @@ import AccountRepository from '../database/repositories/AccountRepository.js';
 import JobRepository from '../database/repositories/JobRepository.js';
 import ActivityRepository from '../database/repositories/ActivityRepository.js';
 import * as Analytics from './analytics.js';
+import studioRoutes from './studio.js';
 import { createLogger } from '../utils/logger.js';
 import 'dotenv/config';
 
@@ -287,6 +288,9 @@ app.get('/api/analytics/success-rate', async (req, res) => {
     });
   }
 });
+
+// Studio X routes
+app.use('/api/studio', studioRoutes);
 
 // Test proxy endpoint
 app.post('/api/test-proxy', async (req, res) => {

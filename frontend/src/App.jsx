@@ -7,6 +7,8 @@ import CreateAccount from './pages/CreateAccount'
 import LiveMonitor from './pages/LiveMonitor'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import StudioSelection from './pages/StudioSelection'
+import StudioX from './pages/StudioX'
 
 function App() {
   return (
@@ -38,9 +40,14 @@ function App() {
         />
         
         <Routes>
+          {/* Studio X - Full Screen Layout */}
+          <Route path="/studio/:accountId" element={<StudioX />} />
+          
+          {/* Main App Layout */}
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="accounts" element={<Accounts />} />
+            <Route path="studio" element={<StudioSelection />} />
             <Route path="create" element={<CreateAccount />} />
             <Route path="monitor" element={<LiveMonitor />} />
             <Route path="analytics" element={<Analytics />} />

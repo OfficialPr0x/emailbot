@@ -1,17 +1,32 @@
 import { useState, useEffect, useRef } from 'react'
-import { Wand2, Mail, Instagram, CheckCircle2, Loader2, Terminal, CheckCircle, Clock, AlertCircle, Activity } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Progress } from '@/components/ui/Progress'
-import { Badge } from '@/components/ui/Badge'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Wand2, 
+  Mail, 
+  Instagram, 
+  CheckCircle2, 
+  Loader2, 
+  Terminal, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  Activity,
+  Sparkles,
+  Zap,
+  Shield,
+  Play,
+  Home,
+} from 'lucide-react'
 import NeuLoader from '@/components/NeuLoader'
 import { botAPI } from '@/services/api'
 import { useStore } from '@/store/useStore'
+import { useNavigate } from 'react-router-dom'
 import socketService from '@/services/socket'
 import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 
 export default function CreateAccount() {
+  const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [creating, setCreating] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -187,145 +202,250 @@ export default function CreateAccount() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-5xl mx-auto space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Create New Account</h1>
-        <p className="text-muted-foreground mt-1">
-          Set up a new Instagram account with AI-powered profiles
+      <motion.div
+        className="text-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-5xl font-bold gradient-text-command smooth-text mb-3 tracking-wider font-mono">
+          DEPLOY NEW ASSET
+        </h1>
+        <p className="text-slate-400 text-lg">
+          Initialize automated Instagram asset with AI-powered profile generation
         </p>
-      </div>
+      </motion.div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-center gap-4">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className="flex items-center gap-2">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full font-semibold ${
-              s < step ? 'bg-green-500 text-white' :
-              s === step ? 'bg-primary text-white' :
-              'bg-muted text-muted-foreground'
-            }`}>
-              {s < step ? <CheckCircle2 className="h-5 w-5" /> : s}
+      {/* Progress Stepper */}
+      <motion.div 
+        className="glass-medium rounded-2xl p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          {[
+            { num: 1, label: 'Configure' },
+            { num: 2, label: 'Create' },
+            { num: 3, label: 'Complete' }
+          ].map((s, index) => (
+            <div key={s.num} className="flex items-center flex-1">
+              <div className="flex flex-col items-center flex-1">
+                <motion.div
+                  className={cn(
+                    'relative flex h-14 w-14 items-center justify-center rounded-2xl font-bold text-lg',
+                    s.num < step && 'bg-gradient-to-br from-emerald-500 to-teal-500',
+                    s.num === step && 'bg-gradient-to-br from-purple-500 to-pink-500',
+                    s.num > step && 'glass-light'
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  animate={s.num === step ? {
+                    boxShadow: [
+                      '0 0 20px rgba(168, 85, 247, 0.5)',
+                      '0 0 30px rgba(168, 85, 247, 0.8)',
+                      '0 0 20px rgba(168, 85, 247, 0.5)',
+                    ]
+                  } : {}}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <span className="text-white">
+                    {s.num < step ? <CheckCircle2 className="h-7 w-7" /> : s.num}
+                  </span>
+                </motion.div>
+                <span className={cn(
+                  'mt-3 text-sm font-semibold',
+                  s.num <= step ? 'text-white' : 'text-slate-500'
+                )}>
+                  {s.label}
+                </span>
+              </div>
+              
+              {index < 2 && (
+                <div className="flex-1 h-1 mx-4 rounded-full bg-slate-700 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    initial={{ width: '0%' }}
+                    animate={{ width: s.num < step ? '100%' : '0%' }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+              )}
             </div>
-            {s < 3 && <div className={`h-0.5 w-12 ${s < step ? 'bg-green-500' : 'bg-muted'}`} />}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </motion.div>
 
-      {/* Step 1: Simple Start */}
-      {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Ready to Create Account</CardTitle>
-            <CardDescription>Everything is configured automatically for you</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Auto-configured features */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border-2 border-green-200 dark:border-green-700">
-                <div className="flex-shrink-0 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 dark:text-white">Auto Proxy Rotation</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">100 premium proxies ready</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-700">
-                <div className="flex-shrink-0 w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 dark:text-white">AI Profile Generation</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Realistic profiles with AI</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-700">
-                <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 dark:text-white">Smart Automation</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Stealth mode & human-like behavior</p>
-                </div>
-              </div>
+      {/* Step 1: Configuration */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="glass-medium rounded-2xl p-8"
+          >
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-2">Ready to Create</h2>
+              <p className="text-slate-400">Everything is configured automatically for maximum success</p>
             </div>
 
-            {/* Big create button */}
-            <Button 
-              className="w-full gradient-instagram text-lg py-6" 
-              size="lg" 
+            {/* Feature Cards */}
+            <div className="grid gap-4 mb-8">
+              {[
+                {
+                  icon: Shield,
+                  title: 'Auto Proxy Rotation',
+                  description: '100 premium proxies ready',
+                  gradient: 'from-emerald-500 to-teal-500',
+                },
+                {
+                  icon: Sparkles,
+                  title: 'AI Profile Generation',
+                  description: 'Realistic profiles with advanced AI',
+                  gradient: 'from-purple-500 to-pink-500',
+                },
+                {
+                  icon: Zap,
+                  title: 'Smart Automation',
+                  description: 'Stealth mode & human-like behavior',
+                  gradient: 'from-blue-500 to-cyan-500',
+                },
+              ].map((feature, index) => {
+                const Icon = feature.icon
+                
+                return (
+                  <motion.div
+                    key={feature.title}
+                    className="glass-light rounded-xl p-5 flex items-center gap-4 group"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 + index * 0.1 }}
+                    whileHover={{ scale: 1.02 }}
+                  >
+                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center flex-shrink-0`}>
+                      <Icon className="w-7 h-7 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-white mb-1">{feature.title}</h3>
+                      <p className="text-sm text-slate-400">{feature.description}</p>
+                    </div>
+                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  </motion.div>
+                )
+              })}
+            </div>
+
+            {/* Create Button */}
+            <motion.button
+              className="w-full py-5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg flex items-center justify-center gap-3 shadow-lg"
               onClick={() => setStep(2)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              animate={{
+                boxShadow: [
+                  '0 10px 40px rgba(168, 85, 247, 0.3)',
+                  '0 10px 50px rgba(168, 85, 247, 0.5)',
+                  '0 10px 40px rgba(168, 85, 247, 0.3)',
+                ]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
             >
-              <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
+              <Play className="w-6 h-6" />
               Create Instagram Account
-            </Button>
+            </motion.button>
 
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-center text-sm text-slate-500 mt-4">
               Click to start - everything is automated for you
             </p>
-          </CardContent>
-        </Card>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Step 2: Creating with Real-time Logs */}
-      {step === 2 && (
-        <div className="space-y-6">
-          {/* Progress Overview Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-3">
-                <NeuLoader size="sm" />
-                Creating Your Account
-              </CardTitle>
-              <CardDescription>Watch the magic happen in real-time</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Current Stage */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-blue-500 animate-pulse" />
-                  <span className="text-lg font-medium">{currentStage || 'Preparing...'}</span>
+      <AnimatePresence mode="wait">
+        {step === 2 && (
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-6"
+          >
+            {/* Progress Overview Card */}
+            <div className="glass-medium rounded-2xl p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <motion.div
+                  animate={{ rotate: creating ? 360 : 0 }}
+                  transition={{ duration: 2, repeat: creating ? Infinity : 0, ease: 'linear' }}
+                >
+                  <Loader2 className="w-8 h-8 text-purple-400" />
+                </motion.div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-white">Creating Your Account</h2>
+                  <p className="text-slate-400 mt-1">Watch the magic happen in real-time</p>
                 </div>
-                <Badge variant="secondary" className="text-lg px-4 py-1">
+              </div>
+
+              {/* Current Stage */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Activity className="w-5 h-5 text-blue-400" />
+                  </motion.div>
+                  <span className="text-lg font-medium text-white">{currentStage || 'Preparing...'}</span>
+                </div>
+                <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold">
                   {progress}%
-                </Badge>
+                </div>
               </div>
               
               {/* Progress Bar */}
-              <Progress value={progress} className="h-3" />
+              <div className="h-3 rounded-full bg-slate-700 overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 bg-[length:200%_100%]"
+                  initial={{ width: '0%' }}
+                  animate={{ 
+                    width: `${progress}%`,
+                    backgroundPosition: ['0% 0%', '100% 0%'],
+                  }}
+                  transition={{
+                    width: { duration: 0.5 },
+                    backgroundPosition: { duration: 2, repeat: Infinity, ease: 'linear' },
+                  }}
+                />
+              </div>
 
               {/* Start Button (if not creating yet) */}
               {!creating && (
-                <Button className="w-full gradient-instagram text-lg py-6 mt-4" size="lg" onClick={handleCreate}>
-                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+                <motion.button
+                  className="w-full py-5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg flex items-center justify-center gap-3 mt-6 shadow-lg"
+                  onClick={handleCreate}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Zap className="w-6 h-6" />
                   Start Creating Now
-                </Button>
+                </motion.button>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
           {/* Stages Tracker */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5" />
-                Workflow Stages
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <motion.div
+            className="glass-medium rounded-2xl p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-purple-400" />
+              Workflow Stages
+            </h3>
+            <div>
               <div className="space-y-3">
                 {stages.map((stage, index) => (
                   <div key={stage.id} className="flex items-center gap-4">
@@ -348,36 +468,56 @@ export default function CreateAccount() {
                           )}
                         </div>
                         {stage.status === 'in_progress' && (
-                          <Progress value={stage.progress} className="h-1 mt-2" />
+                          <div className="h-1 mt-2 bg-slate-700 rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                              initial={{ width: '0%' }}
+                              animate={{ width: `${stage.progress}%` }}
+                              transition={{ duration: 0.5 }}
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </motion.div>
 
           {/* Live Action Logs */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Terminal className="h-5 w-5" />
-                    Live Action Log
-                  </CardTitle>
-                  <CardDescription>Real-time updates from the automation process</CardDescription>
-                </div>
-                {creating && (
-                  <Badge variant="outline" className="flex items-center gap-2 animate-pulse">
-                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    Live
-                  </Badge>
-                )}
+          <motion.div
+            className="glass-medium rounded-2xl p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-1">
+                  <Terminal className="h-5 w-5 text-purple-400" />
+                  Live Action Log
+                </h3>
+                <p className="text-sm text-slate-400">Real-time updates from the automation process</p>
               </div>
-            </CardHeader>
-            <CardContent>
+              {creating && (
+                <div className="px-3 py-1 rounded-lg glass-light flex items-center gap-2">
+                  <motion.span
+                    className="h-2 w-2 rounded-full bg-emerald-500"
+                    animate={{
+                      scale: [1, 1.5, 1],
+                      opacity: [0.7, 1, 0.7],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                    }}
+                  />
+                  <span className="text-xs font-semibold text-emerald-400">Live</span>
+                </div>
+              )}
+            </div>
+            <div>
               <div className="bg-gray-900 dark:bg-black rounded-lg p-4 h-96 overflow-y-auto terminal-log">
                 {logs.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-gray-500">
@@ -405,9 +545,9 @@ export default function CreateAccount() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-gray-400 text-xs font-mono">{log.timestamp}</span>
                             {log.stage && (
-                              <Badge variant="outline" className="text-xs font-mono">
+                              <span className="px-2 py-0.5 rounded glass-light text-xs font-mono text-slate-300 border border-white/10">
                                 {log.stage}
-                              </Badge>
+                              </span>
                             )}
                           </div>
                           <p className={`${
@@ -425,50 +565,127 @@ export default function CreateAccount() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Step 3: Success */}
-      {step === 3 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="h-24 w-24 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center mb-6 animate-bounce">
-                <CheckCircle2 className="h-12 w-12 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+      <AnimatePresence mode="wait">
+        {step === 3 && (
+          <motion.div
+            key="step3"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="glass-medium rounded-2xl p-12"
+          >
+            <div className="flex flex-col items-center justify-center text-center">
+              {/* Success Icon */}
+              <motion.div
+                className="relative mb-8"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+              >
+                <motion.div
+                  className="w-28 h-28 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center"
+                  animate={{
+                    boxShadow: [
+                      '0 0 40px rgba(16, 185, 129, 0.5)',
+                      '0 0 60px rgba(16, 185, 129, 0.8)',
+                      '0 0 40px rgba(16, 185, 129, 0.5)',
+                    ]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <CheckCircle2 className="w-16 h-16 text-white" />
+                </motion.div>
+
+                {/* Confetti Effect */}
+                <motion.div
+                  className="absolute inset-0"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 1, delay: 0.3 }}
+                >
+                  {[...Array(12)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-2 h-2 rounded-full"
+                      style={{
+                        background: `hsl(${i * 30}, 70%, 60%)`,
+                        left: '50%',
+                        top: '50%',
+                      }}
+                      animate={{
+                        x: [0, Math.cos(i * 30) * 60],
+                        y: [0, Math.sin(i * 30) * 60],
+                        opacity: [1, 0],
+                      }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                    />
+                  ))}
+                </motion.div>
+              </motion.div>
+
+              {/* Success Message */}
+              <motion.h2
+                className="text-4xl font-bold gradient-text-success mb-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
                 Account Created Successfully!
-              </h2>
-              <p className="text-lg text-muted-foreground mb-8 max-w-md">
+              </motion.h2>
+
+              <motion.p
+                className="text-lg text-slate-400 mb-10 max-w-md"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
                 Your new Instagram account is ready to use. Check the Accounts page to see it!
-              </p>
-              <div className="flex gap-4">
-                <Button 
-                  variant="outline" 
-                  size="lg"
+              </motion.p>
+
+              {/* Action Buttons */}
+              <motion.div
+                className="flex gap-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <motion.button
+                  className="px-8 py-4 rounded-xl glass-light text-white font-semibold"
                   onClick={() => {
                     setStep(1)
                     setProgress(0)
                     setCurrentStage('')
+                    setCreating(false)
+                    setLogs([])
                   }}
-                  className="px-8"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  Create Another Account
-                </Button>
-                <Button 
-                  className="gradient-instagram px-8" 
-                  size="lg"
-                  onClick={() => window.location.href = '/accounts'}
+                  <Plus className="w-5 h-5 inline mr-2" />
+                  Create Another
+                </motion.button>
+
+                <motion.button
+                  className="px-8 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold shadow-lg"
+                  onClick={() => navigate('/accounts')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
+                  <Home className="w-5 h-5 inline mr-2" />
                   View All Accounts
-                </Button>
-              </div>
+                </motion.button>
+              </motion.div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
